@@ -35,12 +35,21 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
   const bridge = { t: lastTs, actual: lastActual, predicted: lastActual };
   const data = [...histPoints, bridge, ...futurePoints];
 
-  const allVals = data.flatMap((d: any) =>
-    [d.actual, d.predicted, d.upper, d.lower, d.qslU, d.qslL, d.sslU, d.sslL].filter((v) => typeof v === "number"),
+  const coreVals = data.flatMap((d: any) =>
+    [d.actual, d.predicted, d.upper, d.lower].filter((v) => typeof v === "number"),
   );
-  const min = Math.min(...allVals);
-  const max = Math.max(...allVals);
-  const pad = (max - min) * 0.06 || max * 0.001;
+  const envelopeVals = data.flatMap((d: any) =>
+    [d.qslU, d.qslL, d.sslU, d.sslL].filter((v) => typeof v === "number"),
+  );
+  const coreMin = Math.min(...coreVals);
+  const coreMax = Math.max(...coreVals);
+  const coreRange = Math.max(1e-9, coreMax - coreMin);
+  // Prevent a single extreme QSL/SSL point from crushing the visible price path.
+  const envMin = envelopeVals.length ? Math.max(Math.min(...envelopeVals), coreMin - coreRange * 1.5) : coreMin;
+  const envMax = envelopeVals.length ? Math.min(Math.max(...envelopeVals), coreMax + coreRange * 1.5) : coreMax;
+  const min = Math.min(coreMin, envMin);
+  const max = Math.max(coreMax, envMax);
+  const pad = (max - min) * 0.06 || Math.max(Math.abs(max), 1) * 0.001;
 
   const tStart = data[0]?.t ?? lastTs;
   const tEnd = data[data.length - 1]?.t ?? lastTs;

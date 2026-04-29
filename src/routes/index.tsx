@@ -194,16 +194,22 @@ function PredictionEngine() {
       buckets.set(bucket, t.price);
     }
     const minuteSeries = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
-    if (minuteSeries.length >= 30) return minuteSeries;
+    const uniqueMinute = new Set(minuteSeries.map((p) => p.toFixed(8))).size;
+    // Low unique-count minute series means the feed is effectively flat at the
+    // selected resolution; ARIMA/GARCH then collapse to near-zero movement.
+    if (minuteSeries.length >= 30 && uniqueMinute >= 12) return minuteSeries;
     // Sparse feed → use raw ticks (they still capture every observed price)
     return ticks.map((t) => t.price);
   }, [ticks]);
 
   const modelSeries = useMemo(() => {
+    // Prefer live stream for crypto/forex; use Yahoo augmentation mainly for
+    // exchange assets where free delayed feeds can be sparse.
+    if (coin.market === "crypto" || coin.market === "forex") return resampled;
     if (yahooTrain.length < 30) return resampled;
     const merged = [...yahooTrain.slice(-300), ...resampled.slice(-300)];
     return merged.slice(-500);
-  }, [resampled, yahooTrain]);
+  }, [coin.market, resampled, yahooTrain]);
 
   // Assess data quality from live ticks (pure compute — no setState here)
   const dataQualityMemo = useMemo(() => assessDataQuality(ticks), [ticks]);

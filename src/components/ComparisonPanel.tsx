@@ -233,8 +233,8 @@ export function ComparisonPanel({ coin }: Props) {
                 contentStyle={{ background: "oklch(0.18 0.04 265)", border: "1px solid oklch(0.28 0.04 265)", fontSize: 11 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--bull)" dot={false} strokeWidth={1.6} />
-              <Line type="monotone" dataKey="predicted" name="Predicted" stroke="var(--quantum)" dot={false} strokeWidth={1.6} strokeDasharray="4 3" connectNulls />
+              <Line type="linear" dataKey="actual" name="Actual" stroke="var(--bull)" dot={false} strokeWidth={1.6} />
+              <Line type="linear" dataKey="predicted" name="Predicted" stroke="var(--quantum)" dot={false} strokeWidth={1.6} strokeDasharray="4 3" connectNulls />
             </LineChart>
           </ResponsiveContainer>
         )}

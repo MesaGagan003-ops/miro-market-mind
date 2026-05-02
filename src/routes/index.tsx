@@ -374,7 +374,7 @@ function PredictionEngine() {
                   <span className="text-primary">{timeframe.label} forecast</span>
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Hybrid path = ARIMA(1,1,1) recursion + HMM regime drift, entropy-damped & QSL-clipped
+                  Hybrid path = ARIMA(2,1,1) recursion + HMM regime drift, entropy-damped & QSL-clipped
                 </p>
               </div>
               {prediction && (

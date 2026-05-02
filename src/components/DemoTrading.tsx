@@ -74,9 +74,21 @@ interface Props {
   coin: MarketAsset;
   currentPrice: number;
   prediction: HybridResult | null;
+  /** Recent prices (most recent last) used to size stop/TP via ATR. */
+  recentPrices?: number[];
 }
 
-export function DemoTrading({ coin, currentPrice, prediction }: Props) {
+// Per-market default ATR multipliers for SL/TP. Crypto futures move much
+// further than NSE equities or major FX in the same wall-clock window, so a
+// "2σ stop" means very different things across markets.
+const MARKET_RISK: Record<string, { slMult: number; tpMult: number; minBps: number }> = {
+  crypto: { slMult: 1.8, tpMult: 3.0, minBps: 25 },   // 0.25% min stop
+  nse:    { slMult: 1.4, tpMult: 2.4, minBps: 35 },   // 0.35% min stop (slower)
+  bse:    { slMult: 1.4, tpMult: 2.4, minBps: 35 },
+  forex:  { slMult: 1.2, tpMult: 2.0, minBps: 8  },   // 8 bps ~ typical FX stop
+};
+
+export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Props) {
   const [acct, setAcct] = useState<Account>(() => loadAccount());
   const [direction, setDirection] = useState<Direction>("long");
   const [size, setSize] = useState<number>(100);
@@ -105,10 +117,31 @@ export function DemoTrading({ coin, currentPrice, prediction }: Props) {
     else if (prediction?.direction === "down") setDirection("short");
   }, [prediction?.direction]);
 
-  // Suggested Stop / TP from GARCH sigma (2σ stop, 3σ TP). User can override.
-  const sig = (prediction?.garch.sigma ?? 0) * 0.5;
-  const suggestedStop = direction === "long" ? entry - sig * 2 : entry + sig * 2;
-  const suggestedTp = direction === "long" ? entry + sig * 3 : entry - sig * 3;
+  // When direction flips, drop manual SL/TP so they don't sit on the wrong side
+  useEffect(() => {
+    setCustomSL(null);
+    setCustomTP(null);
+  }, [direction]);
+
+  // ATR-style range from recent prices (true range = high-low over last N bars).
+  // Falls back to GARCH σ if no recent series is provided.
+  const atr = useMemo(() => {
+    if (recentPrices && recentPrices.length >= 14) {
+      const slice = recentPrices.slice(-30);
+      let sum = 0;
+      for (let i = 1; i < slice.length; i++) sum += Math.abs(slice[i] - slice[i - 1]);
+      return sum / Math.max(1, slice.length - 1);
+    }
+    return prediction?.garch.sigma ?? 0;
+  }, [recentPrices, prediction?.garch.sigma]);
+
+  const risk = MARKET_RISK[coin.market] ?? MARKET_RISK.crypto;
+  // Floor stop at minBps so micro-volatility regimes don't produce a 1-tick stop.
+  const minMove = entry * (risk.minBps / 10000);
+  const slDist = Math.max(atr * risk.slMult, minMove);
+  const tpDist = Math.max(atr * risk.tpMult, minMove * 1.6);
+  const suggestedStop = direction === "long" ? entry - slDist : entry + slDist;
+  const suggestedTp   = direction === "long" ? entry + tpDist : entry - tpDist;
   const stop = customSL ?? suggestedStop;
   const tp = customTP ?? suggestedTp;
   const riskU = entry > 0 ? size * lev * (Math.abs(entry - stop) / entry) : 0;

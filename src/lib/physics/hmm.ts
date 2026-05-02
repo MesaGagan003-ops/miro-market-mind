@@ -4,12 +4,14 @@
 //
 // Pipeline:
 //   1. Initialise μ/σ from return quantiles (q25, median, q75).
-//   2. Run a few Baum-Welch (forward-backward) EM iterations on the FULL
+//   2. Run adaptive Baum-Welch (forward-backward) EM iterations on the FULL
 //      history to re-estimate transition matrix + emission parameters.
-//      This is much stronger than the previous fixed-prior pass — Viterbi
-//      now decodes against a model that actually fits the asset.
+//      Iterations scale with data length (longer series = more refinement).
+//      Convergence monitored via likelihood improvement ratio.
 //   3. Forward pass for the current state distribution.
-//   4. Viterbi for the most-likely state path (used downstream by hybrid).
+//   4. Viterbi (log-space) for the most-likely state path (numerically stable).
+//   5. Viterbi path quality tracked: high-confidence decoding when repeated
+//      states show strong likelihood ratio over alternatives.
 
 export interface HmmResult {
   stateProbs: [number, number, number];
@@ -80,12 +82,16 @@ export function fitHmm3(prices: number[]): HmmResult {
   let pi: number[] = [1 / 3, 1 / 3, 1 / 3];
 
   // ---- Baum-Welch EM (re-estimate A, μ, σ, π) ----
-  // Capped at 20 iterations; converges much sooner on real data.
-  const MAX_EM = 20;
-  const TOL = 1e-5;
+  // Adaptive EM iterations: longer series get more refinement (20-50 iterations).
+  // Convergence criterion: relative log-likelihood improvement per step < 1e-5.
+  const maxItersDefault = Math.min(50, Math.max(20, Math.floor(Math.log(T) * 10)));
+  const MAX_EM = maxItersDefault;
+  const baseToleranceTerm = 1e-5;
+  const TOL = Math.abs(baseToleranceTerm) * Math.max(1, Math.log(Math.max(2, T))); // scale with series length
   let prevLL = -Infinity;
   let iter = 0;
   let lastLL = 0;
+  let llHistory: number[] = [];
 
   for (iter = 0; iter < MAX_EM; iter++) {
     // Forward with scaling
@@ -178,7 +184,12 @@ export function fitHmm3(prices: number[]): HmmResult {
     mus = newMus;
     sigmas = newSigmas;
 
-    if (Math.abs(ll - prevLL) < TOL * Math.max(1, Math.abs(prevLL))) {
+    // Track LL improvement for adaptive early stopping
+    llHistory.push(ll);
+    const relativeImprovement = prevLL === -Infinity ? 1.0 : (ll - prevLL) / Math.max(1e-10, Math.abs(prevLL));
+    
+    // Early stopping: if LL improvement drops below threshold OR we've done max iterations
+    if (iter > 5 && relativeImprovement < TOL) {
       iter++;
       break;
     }
@@ -246,11 +257,24 @@ export function fitHmm3(prices: number[]): HmmResult {
   for (let t = T - 2; t >= 0; t--) path[t] = psi[t + 1][path[t + 1]];
   void remap; // re-ordering already applied above
 
+  // Calculate Viterbi path quality: measure confidence by comparing best vs second-best path likelihood
+  let viterbiQuality = 0.5; // default medium confidence
+  if (T > 1) {
+    const finalDeltas = delta[T - 1];
+    const sortedDeltas = [...finalDeltas].sort((a, b) => b - a);
+    if (sortedDeltas.length >= 2 && sortedDeltas[0] > sortedDeltas[1]) {
+      // Likelihood ratio: how much better is the best vs second-best
+      const lnRatio = sortedDeltas[0] - sortedDeltas[1];
+      // Map to [0.5, 1.0] range: small improvements → confidence ~0.5, large → confidence ~1.0
+      viterbiQuality = Math.min(1.0, 0.5 + 0.5 * Math.tanh(lnRatio / (2 * T)));
+    }
+  }
+
   // Use the re-estimated A as the displayed transition matrix.
   return {
     stateProbs,
     dominantState,
-    confidence,
+    confidence: Math.max(stateProbs[dominantState], viterbiQuality),
     expectedReturn,
     transitionMatrix: A,
     stateMeans: mus,

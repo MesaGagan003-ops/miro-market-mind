@@ -42,6 +42,60 @@ export interface StochasticSpeedLimitDetail extends SpeedLimit {
   pFinal: number[];   // p_i(τ)
 }
 
+// ---- Adaptive bounds based on market regime ----
+export function adaptiveSpeedLimit(
+  currentPrice: number,
+  sigma: number,
+  steps: number,
+  hvIdx: number, // Hurst index [0, 1]
+  entropy: number, // Shannon entropy [0, 1]
+): SpeedLimit {
+  // Trending markets (H > 0.5): expand cone
+  // Mean-reverting (H < 0.5): tighten cone
+  // High entropy: less certain, expand
+  const hurstFactor = 0.8 + 0.4 * hvIdx;  // [0.8, 1.2]
+  const entropyFactor = 0.9 + 0.3 * entropy; // [0.9, 1.2]
+  
+  const baseK = 2.4;
+  const adaptiveK = baseK * hurstFactor * entropyFactor;
+  
+  const range = adaptiveK * sigma * Math.sqrt(steps);
+  return {
+    upper: currentPrice + range,
+    lower: currentPrice - range,
+    reachableRange: 2 * range,
+    label: "Adaptive Speed Limit",
+    description: `Market-adaptive: H=${hvIdx.toFixed(2)} (trend), H_E=${entropy.toFixed(2)} (entropy), k=${adaptiveK.toFixed(2)}`,
+  };
+}
+
+// ---- Quantum tunneling bound ----
+// Inspired by quantum mechanics: probability of "tunneling" through barrier
+export function quantumTunnelingBound(
+  currentPrice: number,
+  barrierDistance: number, // distance to support/resistance
+  volatility: number,
+  steps: number,
+): SpeedLimit {
+  // Tunneling probability decays exponentially with barrier height
+  // P ~ exp(-2π·barrier·sqrt(m*V)/ℏ)
+  // In markets: probability depends on vol, time, and barrier strength
+  const effectiveBarrier = Math.max(0.001, barrierDistance);
+  const tunnelProb = Math.exp(-2 * Math.PI * effectiveBarrier / (volatility * Math.sqrt(steps)));
+  
+  // If tunneling prob is high, allow larger excursion
+  const multiplier = 1 + 2 * tunnelProb;
+  const range = 2.4 * volatility * Math.sqrt(steps) * multiplier;
+  
+  return {
+    upper: currentPrice + range,
+    lower: currentPrice - range,
+    reachableRange: 2 * range,
+    label: "Quantum Tunneling Bound",
+    description: `Barrier tunneling probability: ${(tunnelProb * 100).toFixed(1)}%`,
+  };
+}
+
 export function quantumSpeedLimit(
   currentPrice: number,
   sigma: number,

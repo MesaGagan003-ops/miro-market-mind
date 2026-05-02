@@ -86,6 +86,26 @@ export function CalibrationPanel({ coin, timeframe, refreshKey }: Props) {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Purpose & Interpretation Card */}
+          <div className="p-2.5 rounded border border-border/50 bg-card/50 space-y-1.5 text-[9px]">
+            <div className="text-muted-foreground font-semibold">Calibration Explained</div>
+            <div className="space-y-1">
+              <div>
+                <span className="text-muted-foreground">Diagonal line:</span>
+                <span className="ml-1 text-foreground">Perfect calibration (confidence matches observed hit rate)</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Above diagonal:</span>
+                <span className="ml-1 text-foreground">Under-confident (actual success rate {'>'} predicted)</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Below diagonal:</span>
+                <span className="ml-1 text-foreground">Over-confident (actual success rate {'<'} predicted)</span>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-4 gap-2 mt-2 text-[10px]">
             <Stat label="Brier" value={data.brierMean.toFixed(4)} hint="lower is better" />
             <Stat label="Reliability" value={data.reliability.toFixed(4)} hint="lower is better" />

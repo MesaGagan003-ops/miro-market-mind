@@ -75,16 +75,46 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
   }, [pts]);
 
   return (
-    <div className="panel p-4">
+    <div className="panel p-4 space-y-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display font-semibold text-sm">Adaptive Trainer Panel</h3>
         <span className="text-[10px] text-muted-foreground uppercase">{market} · {symbol} · {timeframe}</span>
       </div>
+      
       <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
         <Stat label="Recent accuracy" value={`${(acc * 100).toFixed(1)}%`} />
         <Stat label="Recent Brier" value={brier.toFixed(3)} />
         <Stat label="Learning drift" value={drift.toFixed(3)} />
       </div>
+
+      {/* Purpose & Health Card */}
+      <div className="p-2.5 rounded border border-border/50 bg-card/50 space-y-1.5 text-[9px]">
+        <div className="text-muted-foreground font-semibold">Purpose & Model Health</div>
+        <div className="space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Accuracy trend:</span>
+            <span className="font-bold" style={{ color: acc > 0.55 ? "hsl(142 76% 50%)" : acc > 0.50 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
+              {acc > 0.55 ? "✓ Good" : acc > 0.50 ? "~ Fair" : "✗ Poor"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Calibration (Brier):</span>
+            <span className="font-bold" style={{ color: brier < 0.2 ? "hsl(142 76% 50%)" : brier < 0.25 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
+              {brier < 0.2 ? "✓ Well-calibrated" : brier < 0.25 ? "~ Acceptable" : "✗ Needs refinement"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Model stability:</span>
+            <span className="font-bold" style={{ color: Math.abs(drift) < 0.05 ? "hsl(142 76% 50%)" : Math.abs(drift) < 0.1 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
+              {Math.abs(drift) < 0.05 ? "✓ Stable" : Math.abs(drift) < 0.1 ? "~ Drifting" : "✗ Unstable"}
+            </span>
+          </div>
+        </div>
+        <p className="text-muted-foreground text-[8px] mt-1 leading-tight">
+          Tracks how the ARIMA/HMM/entropy components evolve together during real-time adaptation.
+        </p>
+      </div>
+
       <div className="h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={pts} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
@@ -99,7 +129,7 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
         </ResponsiveContainer>
       </div>
       <p className="text-[10px] text-muted-foreground mt-2">
-        Tracks evolving ARIMA/HMM/entropy weights and learning drift in the physics hybrid model.
+        Monitors how ARIMA/HMM/entropy weights adapt over time. Tracks model drift and recalibration.
       </p>
     </div>
   );

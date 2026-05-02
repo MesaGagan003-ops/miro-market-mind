@@ -54,66 +54,100 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
   const tStart = data[0]?.t ?? lastTs;
   const tEnd = data[data.length - 1]?.t ?? lastTs;
 
+  // Prediction statistics
+  const lastPredicted = futurePoints.length > 0 ? futurePoints[futurePoints.length - 1].predicted : lastActual;
+  const predictionReturn = lastActual > 0 ? ((lastPredicted - lastActual) / lastActual) * 100 : 0;
+  const predictionDirection = predictionReturn > 0 ? "↑ UP" : predictionReturn < 0 ? "↓ DOWN" : "→ FLAT";
+  const directionColor = predictionReturn > 0 ? "hsl(142 76% 50%)" : predictionReturn < 0 ? "hsl(0 84% 60%)" : "hsl(50 85% 45%)";
+
   return (
-    <ResponsiveContainer width="100%" height={420}>
-      <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
-        <defs>
-          <linearGradient id="qslFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.04} />
-          </linearGradient>
-          <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.25} vertical={false} />
-        <XAxis
-          dataKey="t"
-          type="number"
-          scale="time"
-          domain={[tStart, tEnd]}
-          tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
-          stroke="oklch(0.28 0.04 265)"
-          tickFormatter={(v) => formatTime(v, tEnd - tStart)}
-          minTickGap={48}
-        />
-        <YAxis
-          domain={[min - pad, max + pad]}
-          tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
-          stroke="oklch(0.28 0.04 265)"
-          tickFormatter={(v) => formatPrice(v)}
-          width={70}
-          orientation="right"
-        />
-        <Tooltip
-          contentStyle={{
-            background: "oklch(0.17 0.03 265)",
-            border: "1px solid oklch(0.28 0.04 265)",
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          labelFormatter={(v: any) => new Date(v).toLocaleString()}
-          formatter={(value: any, name: any) => [typeof value === "number" ? formatPrice(value) : String(value), String(name)]}
-        />
-        <ReferenceLine x={lastTs} stroke="oklch(0.65 0.03 255)" strokeDasharray="2 4" strokeOpacity={0.5} label={{ value: "now", position: "top", fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
-        <ReferenceLine y={currentPrice} stroke="oklch(0.72 0.18 230)" strokeDasharray="3 3" strokeOpacity={0.4} />
-        {/* QSL band */}
-        <Area dataKey="qslU" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="url(#qslFill)" connectNulls isAnimationActive={false} />
-        <Area dataKey="qslL" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="transparent" connectNulls isAnimationActive={false} />
-        {/* SSL */}
-        <Line dataKey="sslU" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />
-        <Line dataKey="sslL" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />
-        {/* GARCH 1σ */}
-        <Line dataKey="upper" stroke="oklch(0.75 0.18 60)" strokeWidth={0.8} strokeOpacity={0.6} dot={false} connectNulls isAnimationActive={false} />
-        <Line dataKey="lower" stroke="oklch(0.75 0.18 60)" strokeWidth={0.8} strokeOpacity={0.6} dot={false} connectNulls isAnimationActive={false} />
-        {/* Actual price (CoinGecko-style filled area) */}
-        <Area dataKey="actual" stroke="oklch(0.72 0.18 230)" strokeWidth={1.6} fill="url(#actualFill)" dot={false} connectNulls isAnimationActive={false} />
-        {/* Prediction */}
-        <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <div className="space-y-2">
+      <div className="flex justify-between items-baseline text-[10px] px-2">
+        <span className="text-muted-foreground">Forecast: {prediction.forecast.length} steps · {(prediction.forecast.length * minutesPerStep).toFixed(0)} min horizon</span>
+        <div className="flex gap-3">
+          <div><span className="text-muted-foreground">Confidence: </span><span className="font-bold text-foreground">{(prediction.hybridConfidence * 100).toFixed(0)}%</span></div>
+          <div><span className="text-muted-foreground">Predicted direction: </span><span className="font-bold" style={{ color: directionColor }}>{predictionDirection} ({Math.abs(predictionReturn).toFixed(2)}%)</span></div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={420}>
+        <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
+          <defs>
+            <linearGradient id="qslFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.18} />
+              <stop offset="100%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.04} />
+            </linearGradient>
+            <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
+              <stop offset="100%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.25} vertical={false} />
+          <XAxis
+            dataKey="t"
+            type="number"
+            scale="time"
+            domain={[tStart, tEnd]}
+            tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+            stroke="oklch(0.28 0.04 265)"
+            tickFormatter={(v) => formatTime(v, tEnd - tStart)}
+            minTickGap={48}
+          />
+          <YAxis
+            domain={[min - pad, max + pad]}
+            tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+            stroke="oklch(0.28 0.04 265)"
+            tickFormatter={(v) => formatPrice(v)}
+            width={70}
+            orientation="right"
+          />
+          <Tooltip
+            contentStyle={{
+              background: "oklch(0.17 0.03 265)",
+              border: "1px solid oklch(0.28 0.04 265)",
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+            labelFormatter={(v: any) => new Date(v).toLocaleString()}
+            formatter={(value: any, name: any) => [typeof value === "number" ? formatPrice(value) : String(value), String(name)]}
+          />
+          <ReferenceLine x={lastTs} stroke="oklch(0.65 0.03 255)" strokeDasharray="2 4" strokeOpacity={0.5} label={{ value: "now", position: "top", fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
+          <ReferenceLine y={currentPrice} stroke="oklch(0.72 0.18 230)" strokeDasharray="3 3" strokeOpacity={0.4} />
+          {/* QSL band */}
+          <Area dataKey="qslU" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="url(#qslFill)" connectNulls isAnimationActive={false} />
+          <Area dataKey="qslL" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="transparent" connectNulls isAnimationActive={false} />
+          {/* SSL */}
+          <Line dataKey="sslU" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />
+          <Line dataKey="sslL" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />
+          {/* GARCH 1σ */}
+          <Line dataKey="upper" stroke="oklch(0.75 0.18 60)" strokeWidth={0.8} strokeOpacity={0.6} dot={false} connectNulls isAnimationActive={false} />
+          <Line dataKey="lower" stroke="oklch(0.75 0.18 60)" strokeWidth={0.8} strokeOpacity={0.6} dot={false} connectNulls isAnimationActive={false} />
+          {/* Actual price (CoinGecko-style filled area) */}
+          <Area dataKey="actual" stroke="oklch(0.72 0.18 230)" strokeWidth={1.6} fill="url(#actualFill)" dot={false} connectNulls isAnimationActive={false} />
+          {/* Prediction */}
+          <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 text-[9px] px-2 pb-2">
+        <Legend c="oklch(0.72 0.18 230)" l="Actual price" />
+        <Legend c="oklch(0.65 0.24 25)" l="Predicted price" />
+        <Legend c="oklch(0.75 0.18 60)" l="GARCH ±1σ" dash />
+        <Legend c="oklch(0.78 0.18 130)" l="SSL bounds" dash />
+        <Legend c="oklch(0.72 0.22 305)" l="QSL envelope" dash />
+      </div>
+    </div>
   );
+}
+
+function Legend({ c, l, dash }: { c: string; l: string; dash?: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div style={{ width: 14, height: 1.5, background: c, opacity: 0.8, ...( dash && { backgroundImage: "repeating-linear-gradient(to right, " + c + " 0, " + c + " 3px, transparent 3px, transparent 6px)", background: "transparent" }) }} />
+      <span className="text-muted-foreground">{l}</span>
+    </div>
+  );
+}
 }
 
 function formatPrice(v: number): string {

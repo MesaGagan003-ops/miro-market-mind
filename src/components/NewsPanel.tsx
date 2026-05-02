@@ -34,7 +34,7 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
     setErr(null);
     setSentiment(null);
     const sym = (coin.symbol || "btc").toUpperCase();
-    fetchCoinNews({ data: { symbol: sym } })
+    fetchCoinNews({ data: { symbol: sym, market: coin.market } })
       .then((r) => {
         if (cancelled) return;
         setSentiment(buildSentiment(r.items));
@@ -46,7 +46,7 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
       .finally(() => !cancelled && setLoading(false));
     // refresh every 5 minutes
     const id = setInterval(() => {
-      fetchCoinNews({ data: { symbol: sym } })
+      fetchCoinNews({ data: { symbol: sym, market: coin.market } })
         .then((r) => !cancelled && setSentiment(buildSentiment(r.items)))
         .catch(() => {});
     }, 5 * 60 * 1000);
@@ -54,7 +54,7 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
       cancelled = true;
       clearInterval(id);
     };
-  }, [coin.id, coin.symbol]);
+  }, [coin.id, coin.symbol, coin.market]);
 
   const tone =
     !sentiment ? "neutral" :

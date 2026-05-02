@@ -91,6 +91,33 @@ export function IndicatorOverlayPanel({ history }: Props) {
         </div>
       </div>
 
+      {/* Purpose & Metrics Card */}
+      <div className="p-3 rounded border border-border/50 bg-card/50 space-y-2 text-[10px]">
+        <div className="text-muted-foreground font-semibold mb-1">Purpose & Metrics</div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <span className="text-muted-foreground">MA Crossover Signal:</span>
+            <span className="font-bold text-foreground ml-1" style={{ color: features.emaSlopeFast >= 0 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
+              {features.emaSlopeFast >= 0 ? "↗ Uptrend" : "↘ Downtrend"}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">MACD Momentum:</span>
+            <span className="font-bold text-foreground ml-1" style={{ color: features.macdHist >= 0 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
+              {features.macdHist >= 0 ? "🟢 Positive" : "🔴 Negative"}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">VWAP Position:</span>
+            <span className="font-bold text-foreground ml-1">{Math.abs(features.vwapZ) < 0.5 ? "At VWAP" : features.vwapZ > 0 ? `${Math.abs(features.vwapZ).toFixed(1)}σ above` : `${Math.abs(features.vwapZ).toFixed(1)}σ below`}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Model Weight:</span>
+            <span className="font-bold text-foreground ml-1">{(features.bias * 100).toFixed(1)}% bullish bias</span>
+          </div>
+        </div>
+      </div>
+
       {/* Price + MA + VWAP + SuperTrend */}
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>

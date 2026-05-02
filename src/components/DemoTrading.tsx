@@ -294,6 +294,22 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
         </div>
       </div>
 
+      {/* Market Risk Profile Display */}
+      <div className="p-2 rounded border border-border/50 bg-card/50 text-[9px] space-y-1">
+        <div className="flex justify-between text-muted-foreground">
+          <span>Volatility (ATR):</span>
+          <span className="font-mono font-bold text-foreground">{atr.toFixed(8)}</span>
+        </div>
+        <div className="flex justify-between text-muted-foreground">
+          <span>Market Risk:</span>
+          <span className="font-mono font-bold text-foreground">{risk.slMult.toFixed(1)}σ SL · {risk.tpMult.toFixed(1)}σ TP · {risk.minBps} bps min</span>
+        </div>
+        <div className="flex justify-between text-muted-foreground">
+          <span>Suggested SL/TP:</span>
+          <span className="font-mono font-bold text-foreground">{fmtPrice(suggestedStop)} / {fmtPrice(suggestedTp)}</span>
+        </div>
+      </div>
+
       {/* Inputs */}
       <div className="grid grid-cols-3 gap-2">
         <NumField label="Size (USDT)" value={size} onChange={setSize} min={1} />

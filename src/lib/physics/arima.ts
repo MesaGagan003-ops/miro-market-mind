@@ -154,5 +154,8 @@ export function fitArima211(prices: number[]): ArimaResult {
   };
 }
 
+// Explicit (2,1,1) model: d=1 (one difference), p=2 (AR order), q=1 (MA order).
+// Second-order AR on differenced prices + first-order moving average term.
+export const fitArima211Explicit = fitArima211;
 // Backwards-compat alias so existing imports keep working.
 export const fitArima111 = fitArima211;

@@ -51,7 +51,7 @@ export function WalkForwardPanel({ coin }: Props) {
   const m = result?.metrics;
 
   return (
-    <div className="panel p-4">
+    <div className="panel p-4 space-y-3">
       <div className="flex items-start justify-between mb-3 flex-wrap gap-2">
         <div>
           <h3 className="font-display font-semibold text-sm">Walk-Forward Backtest (cost-adjusted)</h3>
@@ -72,6 +72,22 @@ export function WalkForwardPanel({ coin }: Props) {
       <div className="grid grid-cols-2 gap-2 mb-3">
         <NumField label="Fees (bps round-trip)" value={cost.feesBps} onChange={(v) => setCost((c) => ({ ...c, feesBps: v }))} />
         <NumField label="Slippage (bps round-trip)" value={cost.slippageBps} onChange={(v) => setCost((c) => ({ ...c, slippageBps: v }))} />
+      </div>
+
+      {/* Purpose & Validation Card */}
+      <div className="p-2.5 rounded border border-border/50 bg-card/50 space-y-1.5 text-[9px]">
+        <div className="text-muted-foreground font-semibold">Purpose & Validation</div>
+        <div className="space-y-1">
+          <div className="text-muted-foreground">
+            Walk-forward testing simulates real trading: train on historical data, predict next N bars, compare prediction sign to actual return.
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[8px]">
+            <div><span className="font-bold text-foreground">✓ No Look-Ahead:</span> Each forecast uses only past data</div>
+            <div><span className="font-bold text-foreground">✓ Expanding Window:</span> Training set grows with each step</div>
+            <div><span className="font-bold text-foreground">✓ Cost-Aware:</span> Fees and slippage deducted</div>
+            <div><span className="font-bold text-foreground">✓ Sign-Based:</span> Only directional accuracy matters</div>
+          </div>
+        </div>
       </div>
 
       {loading ? (

@@ -48,41 +48,102 @@ function scoreText(text: string): number {
 
 export const fetchCoinNews = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => {
-    const i = (input ?? {}) as { symbol?: string };
-    return { symbol: String(i.symbol ?? "BTC").toUpperCase() };
+    const i = (input ?? {}) as { symbol?: string; market?: string };
+    return { symbol: String(i.symbol ?? "BTC").toUpperCase(), market: String(i.market ?? "crypto") };
   })
   .handler(async ({ data }) => {
-    // Primary: CryptoCompare News (free, no API key, generous CORS, stable schema).
-    // Filter by category (their token for the asset). Falls back to general feed.
     const headers = { "User-Agent": "MIRO/1.0", Accept: "application/json" } as const;
-    const ccUrl = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=${encodeURIComponent(data.symbol)}`;
-    try {
-      const res = await fetch(ccUrl, { headers });
-      if (res.ok) {
-        const j = (await res.json()) as { Data?: CCNewsItem[] };
-        const mapped = (j.Data ?? []).slice(0, 30).map(ccToRaw);
-        if (mapped.length > 0) return { items: mapped };
-      }
-    } catch { /* fall through */ }
 
-    // Fallback 1: CryptoCompare general feed.
-    try {
-      const res = await fetch(`https://min-api.cryptocompare.com/data/v2/news/?lang=EN`, { headers });
-      if (res.ok) {
-        const j = (await res.json()) as { Data?: CCNewsItem[] };
-        const mapped = (j.Data ?? []).slice(0, 30).map(ccToRaw);
-        if (mapped.length > 0) return { items: mapped };
-      }
-    } catch { /* fall through */ }
+    // For crypto: try multiple free sources in order of reliability + speed
+    if (data.market === "crypto" || data.market.includes("crypto")) {
+      // 1. CoinGecko News (free, simple trending news)
+      try {
+        const cgRes = await fetch(
+          `https://api.coingecko.com/api/v3/search/trending`,
+          { headers }
+        );
+        if (cgRes.ok) {
+          const cgData = (await cgRes.json()) as { coins?: CoinGeckoTrendingCoin[] };
+          const items: RawPost[] = [];
+          const coin = cgData.coins?.find(c => 
+            c.item?.symbol?.toUpperCase() === data.symbol ||
+            c.item?.name?.toUpperCase()?.includes(data.symbol)
+          );
+          if (coin?.item) {
+            // CoinGecko doesn't have news directly, but trending data is useful signal
+            items.push({
+              id: Math.floor(Math.random() * 1e9),
+              title: `${coin.item.name} is trending (#${coin.item.market_cap_rank || '?'})`,
+              url: coin.item.large || "",
+              published_at: new Date().toISOString(),
+              source: { title: "CoinGecko Trending" },
+              votes: { positive: coin.item.ath_percentage_change || 0, negative: 0 },
+            });
+          }
+          
+          // 2. CryptoCompare News (free, category-specific)
+          const ccUrl = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=${encodeURIComponent(data.symbol)}&limit=20`;
+          try {
+            const ccRes = await fetch(ccUrl, { headers });
+            if (ccRes.ok) {
+              const j = (await ccRes.json()) as { Data?: CCNewsItem[] };
+              items.push(...(j.Data ?? []).slice(0, 15).map(ccToRaw));
+            }
+          } catch { /* continue */ }
+          
+          if (items.length > 0) return { items };
+        }
+      } catch { /* fall through */ }
 
-    // Fallback 2: CryptoPanic public feed (legacy).
-    try {
-      const r2 = await fetch(`https://cryptopanic.com/api/v1/posts/?public=true&kind=news`, { headers });
-      if (r2.ok) {
-        const j = (await r2.json()) as { results?: RawPost[] };
-        return { items: j.results ?? [] };
-      }
-    } catch { /* ignore */ }
+      // 3. CryptoCompare fallback (general feed)
+      try {
+        const res = await fetch(`https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=30`, { headers });
+        if (res.ok) {
+          const j = (await res.json()) as { Data?: CCNewsItem[] };
+          const mapped = (j.Data ?? []).slice(0, 30).map(ccToRaw);
+          if (mapped.length > 0) return { items: mapped };
+        }
+      } catch { /* fall through */ }
+
+      // 4. CryptoPanic fallback
+      try {
+        const r2 = await fetch(`https://cryptopanic.com/api/v1/posts/?public=true&kind=news&limit=30`, { headers });
+        if (r2.ok) {
+          const j = (await r2.json()) as { results?: RawPost[] };
+          if (j.results && j.results.length > 0) return { items: j.results };
+        }
+      } catch { /* ignore */ }
+    }
+    
+    // For stocks (NSE/BSE/Forex): use business/financial news
+    if (["nse", "bse", "forex", "stocks"].some(m => data.market.includes(m))) {
+      // Try to get general financial news for the symbol
+      try {
+        const query = `${data.symbol} stock market trading`;
+        // Using Yahoo Finance news endpoint (free, no auth)
+        const yfRes = await fetch(
+          `https://query1.finance.yahoo.com/v1/finance/news?symbols=${encodeURIComponent(data.symbol.toUpperCase())}`,
+          { headers }
+        );
+        if (yfRes.ok) {
+          const yfData = (await yfRes.json()) as { news?: YFNewsItem[] };
+          if (yfData.news && yfData.news.length > 0) {
+            const items = yfData.news.slice(0, 30).map(n => ({
+              id: n.uuid ? Math.abs(n.uuid.split('').reduce((a,c) => a + c.charCodeAt(0), 0)) : Math.floor(Math.random() * 1e9),
+              title: n.title,
+              url: n.link,
+              published_at: new Date(n.published_at * 1000).toISOString(),
+              source: { title: n.source },
+              votes: { positive: 0, negative: 0 },
+            }));
+            if (items.length > 0) return { items };
+          }
+        }
+      } catch { /* fall through */ }
+
+      // Fallback: return empty (no financial news available)
+      return { items: [] };
+    }
 
     return { items: [] as RawPost[] };
   });
@@ -97,6 +158,26 @@ interface CCNewsItem {
   body?: string;
   upvotes?: string | number;
   downvotes?: string | number;
+}
+
+interface CoinGeckoTrendingCoin {
+  item?: {
+    id: string;
+    name: string;
+    symbol: string;
+    market_cap_rank?: number;
+    large?: string;
+    ath_percentage_change?: number;
+  };
+}
+
+interface YFNewsItem {
+  uuid: string;
+  title: string;
+  publisher: string;
+  link: string;
+  source: string;
+  published_at: number; // unix seconds
 }
 
 function ccToRaw(it: CCNewsItem): RawPost {

@@ -1,8 +1,8 @@
-// Hybrid prediction engine: ARIMA + GARCH + HMM + Shannon Entropy
+// Hybrid prediction engine: ARIMA(2,1,1) + GARCH + HMM + Shannon Entropy
 // + Hurst exponent + Hamiltonian energy, constrained by QSL and SSL.
 //
 // Path construction (per step i = 1..N):
-//   1. ARIMA(1,1,1) recursive forecast with capped shocks → wiggly path.
+//   1. ARIMA(2,1,1) recursive forecast with capped shocks → wiggly path.
 //   2. Add HMM regime drift bias = (P(bull) - P(bear)) · σ
 //   3. Add Hamiltonian velocity bias proportional to recent kinetic energy.
 //   4. Hurst-aware trust factor: trending markets keep deviation, mean-
@@ -11,7 +11,7 @@
 //   6. QSL hard clip ±2.4·σ·√i.
 //   7. Light EMA smoothing pass to remove tick-scale jitter.
 
-import { fitArima111 } from "./arima";
+import { fitArima211 } from "./arima";
 import { fitGarch11 } from "./garch";
 import { fitHmm3 } from "./hmm";
 import { shannonEntropy } from "./entropy";
@@ -40,7 +40,7 @@ export interface ForecastPoint {
 }
 
 export interface HybridResult {
-  arima: ReturnType<typeof fitArima111>;
+  arima: ReturnType<typeof fitArima211>;
   garch: ReturnType<typeof fitGarch11>;
   hmm: ReturnType<typeof fitHmm3>;
   entropy: ReturnType<typeof shannonEntropy>;
@@ -91,7 +91,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     p * (1 - profile.waveletSmoothing) + wavelet.trend[i] * profile.waveletSmoothing,
   );
 
-  const arima = fitArima111(blended);
+  const arima = fitArima211(blended);
   const garch = fitGarch11(blended);
   const hmm = fitHmm3(blended);
   const entropy = shannonEntropy(blended);

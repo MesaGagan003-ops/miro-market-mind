@@ -148,7 +148,6 @@ function Legend({ c, l, dash }: { c: string; l: string; dash?: boolean }) {
     </div>
   );
 }
-}
 
 function formatPrice(v: number): string {
   if (v >= 1000) return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;

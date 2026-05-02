@@ -117,6 +117,12 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     else if (prediction?.direction === "down") setDirection("short");
   }, [prediction?.direction]);
 
+  // When direction flips, drop manual SL/TP so they don't sit on the wrong side
+  useEffect(() => {
+    setCustomSL(null);
+    setCustomTP(null);
+  }, [direction]);
+
   // ATR-style range from recent prices (true range = high-low over last N bars).
   // Falls back to GARCH σ if no recent series is provided.
   const atr = useMemo(() => {

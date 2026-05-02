@@ -440,7 +440,7 @@ function PredictionEngine() {
         />
 
         {/* Demo trading */}
-        <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} />
+        <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
 
         {/* Model panels */}
         {prediction && (

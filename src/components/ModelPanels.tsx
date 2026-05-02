@@ -50,18 +50,19 @@ export function ModelPanels({ result, minutes }: Props) {
       </Panel>
 
       <Panel
-        title="ARIMA(1,1,1)"
+        title="ARIMA(2,1,1)"
         accent="var(--arima)"
-        subtitle="y'ₜ = c + φ·y'ₜ₋₁ + θ·εₜ₋₁ + εₜ"
+        subtitle="y'ₜ = c + φ₁·y'ₜ₋₁ + φ₂·y'ₜ₋₂ + θ·εₜ₋₁ + εₜ"
       >
         <Row label="Drift c" value={signedPrice(arima.c)} />
-        <Row label="φ (AR memory)" value={arima.phi.toFixed(3)} />
+        <Row label="φ₁ (AR lag-1)" value={arima.phi.toFixed(3)} />
+        <Row label="φ₂ (AR lag-2)" value={(arima.phi2 ?? 0).toFixed(3)} />
         <Row label="θ (MA shock)" value={arima.theta.toFixed(3)} />
         <Row label="Long-run drift / step" value={signedPrice(arima.driftPerStep)} />
         <Row label="Residual σ" value={formatPrice(arima.residualStd)} />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          Forecast path is recursive with sampled shocks ε ~ N(0, σ_resid) — that's why the
-          predicted line wiggles instead of going straight.
+          Two-lag autoregressive memory captures momentum + mean-reversion together.
+          Recursive forecast samples ε ~ N(0, σ_resid) per step — that's the wiggle.
         </p>
       </Panel>
 

@@ -465,8 +465,8 @@ function PredictionEngine() {
 
         {/* Footer note */}
         <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">How the models cooperate:</strong> ARIMA(1,1,1) is
-          fit by SSE-minimising (φ, θ) on differenced prices and produces a recursive,
+          <strong className="text-foreground">How the models cooperate:</strong> ARIMA(2,1,1) is
+          fit by SSE-minimising (φ₁, φ₂, θ) on differenced prices and produces a recursive,
           shock-driven forecast — the wiggles you see come from sampled εₜ ~ N(0, σ_resid).
           The <span style={{ color: "var(--hmm)" }}>HMM</span> Forward+Viterbi pass adds a regime
           drift bias proportional to (P(bull) − P(bear))·σ. <span style={{ color: "var(--entropy)" }}>Shannon

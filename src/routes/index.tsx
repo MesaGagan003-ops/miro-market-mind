@@ -36,6 +36,8 @@ import { PerformanceTable } from "@/components/PerformanceTable";
 import { DisclaimerModal, DisclaimerBanner, DisclaimerFooter } from "@/components/Disclaimer";
 import { TradingReadinessAlert } from "@/components/TradingReadinessAlert";
 import { IndicatorOverlayPanel } from "@/components/IndicatorOverlayPanel";
+import { fetchCoinNews } from "@/lib/news";
+import { getDecayedLlmSignal, peekDecayedSignal } from "@/lib/llmCache";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -65,6 +67,7 @@ function PredictionEngine() {
   const [providerHealth, setProviderHealth] = useState<Record<string, ProviderHealthItem>>({});
   const [yahooTrain, setYahooTrain] = useState<number[]>([]);
   const [adaptive, setAdaptive] = useState<AdaptiveWeights | null>(null);
+  const [llmSignal, setLlmSignal] = useState<{ bias: number; confidence: number; rationale: string }>({ bias: 0, confidence: 0, rationale: "" });
   const [dataQuality, setDataQuality] = useState<DataQualityScore>({ score: 0, isGappy: true, isSparse: true, isFresh: false, detail: "Initializing" });
   const [isReadyToTrade, setIsReadyToTrade] = useState(false);
   const lastRecordRef = useRef<number>(0);
@@ -211,6 +214,39 @@ function PredictionEngine() {
     return merged.slice(-500);
   }, [coin.market, resampled, yahooTrain]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadLlmSignal = async () => {
+      if (!currentPrice || modelSeries.length < 10) return;
+      const cached = peekDecayedSignal(coin.market, coin.id);
+      if (cached && cached.confidence > 0.08) {
+        if (!cancelled) setLlmSignal({ bias: cached.bias, confidence: cached.confidence, rationale: cached.rationale });
+        return;
+      }
+      try {
+        const recentReturnPct = ((modelSeries[modelSeries.length - 1] - modelSeries[Math.max(0, modelSeries.length - 6)]) / Math.max(1e-9, modelSeries[Math.max(0, modelSeries.length - 6)])) * 100;
+        const news = await fetchCoinNews({ data: { symbol: coin.symbol.toUpperCase(), market: coin.market } });
+        const titles = (news.items ?? []).slice(0, 8).map((item: any) => item.title).filter(Boolean);
+        const llm = await getDecayedLlmSignal({
+          market: coin.market,
+          symbol: coin.id,
+          spotPrice: currentPrice,
+          recentReturnPct,
+          newsTitles: titles,
+        });
+        if (!cancelled) setLlmSignal(llm);
+      } catch {
+        if (!cancelled) setLlmSignal({ bias: 0, confidence: 0, rationale: "" });
+      }
+    };
+    void loadLlmSignal();
+    const id = setInterval(loadLlmSignal, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [coin.market, coin.id, coin.symbol, currentPrice, modelSeries]);
+
   // Assess data quality from live ticks (pure compute — no setState here)
   const dataQualityMemo = useMemo(() => assessDataQuality(ticks), [ticks]);
 
@@ -242,14 +278,17 @@ function PredictionEngine() {
             hmm: adaptive.hmm,
             entropy: adaptive.entropy,
             hurst: adaptive.hurst,
+            neural: adaptive.neural,
           }
         : undefined,
       dataQualityScore: dataQualityMemo.score,
       market: coin.market,
+      llmBias: llmSignal.bias,
+      llmConfidence: llmSignal.confidence,
     });
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minuteBuckets, timeframe.id, adaptive, dataQualityMemo.score, coin.market]);
+  }, [minuteBuckets, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
   // hydration mismatch ("Model accuracy too low: X% vs 0.0%") and avoid
@@ -448,7 +487,7 @@ function PredictionEngine() {
         )}
 
         {/* Technical indicator overlay (visual context on actual line + features that feed the model) */}
-        <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} />
+        <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
 
         <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
 
@@ -472,7 +511,10 @@ function PredictionEngine() {
           drift bias proportional to (P(bull) − P(bear))·σ. <span style={{ color: "var(--entropy)" }}>Shannon
           entropy</span> dampens the deviation from spot — high H means noise dominates so the
           path is pulled back. <span style={{ color: "var(--garch)" }}>GARCH(1,1)</span> sets the
-          σ-band width per step. Finally the <span style={{ color: "var(--qsl)" }}>Quantum Speed
+          σ-band width per step. The <span style={{ color: "var(--bull)" }}>neural network</span>
+          trains on the same historical price path to refine the next-return estimate, and the
+          optional <span style={{ color: "var(--qsl)" }}>LLM bias</span> nudges drift from news-aware
+          context when available. Finally the <span style={{ color: "var(--qsl)" }}>Quantum Speed
           Limit</span> hard-clips the path to ±2.4σ·√N (Mandelstam–Tamm) and the
           <span style={{ color: "var(--ssl)" }}> Stochastic Speed Limit</span> draws the Itô 95%
           envelope (μT ± 1.96σ√T). Directional accuracy is tracked locally.

@@ -26,6 +26,7 @@ import { waveletDecompose, type WaveletResult } from "./wavelet";
 import { transferEntropy, type TransferEntropyResult } from "./transferEntropy";
 import { multifractalSpectrum, type MultifractalResult } from "./multifractal";
 import { getMarketProfile, type MarketPhysicsProfile } from "./marketProfiles";
+import { trainNetworkOnHistory, type NeuralNetworkResult } from "./neuralNet";
 import type { MarketKind } from "@/lib/markets";
 
 export interface ForecastPoint {
@@ -57,15 +58,18 @@ export interface HybridResult {
   multifractal: MultifractalResult;
   fokkerPlanck: FokkerPlanckResult;
   marketProfile: MarketPhysicsProfile;
+  neural: NeuralNetworkResult;
   forecast: ForecastPoint[];
   finalPrice: number;
   direction: "up" | "down" | "flat";
+  currentSignal: "buy" | "sell" | "hold";
+  futureSignal: "buy" | "sell" | "hold";
   hybridConfidence: number;
-  weights: { arima: number; hmm: number; entropy: number; hurst: number; indicators: number; llm: number };
+  weights: { arima: number; hmm: number; entropy: number; hurst: number; indicators: number; llm: number; neural: number };
 }
 
 export interface HybridOptions {
-  adaptiveWeights?: Partial<{ arima: number; hmm: number; entropy: number; hurst: number; llm: number }>;
+  adaptiveWeights?: Partial<{ arima: number; hmm: number; entropy: number; hurst: number; llm: number; neural: number }>;
   llmBias?: number;
   llmConfidence?: number;
   dataQualityScore?: number; // 0..1, where 1 = perfect data
@@ -108,6 +112,28 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   // === Tier-2: Multifractal + Transfer Entropy ===
   const multifractal = multifractalSpectrum(prices);
   const te = transferEntropy(prices, options?.leaderPrices ?? null);
+  const returns: number[] = [];
+  const volatilitySeries: number[] = [];
+  const featureSeries: number[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    const prev = prices[i - 1] || prices[i];
+    const curr = prices[i] || prev;
+    const ret = Math.log(Math.max(curr, 1e-9) / Math.max(prev, 1e-9));
+    returns.push(ret);
+    const start = Math.max(0, i - 10);
+    const window = returns.slice(start, i);
+    const mean = window.reduce((a, b) => a + b, 0) / Math.max(1, window.length);
+    const variance = window.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, window.length);
+    volatilitySeries.push(Math.sqrt(variance));
+    const prefix = prices.slice(0, i + 1);
+    featureSeries.push(prefix.length >= 30 ? extractFeatures(prefix).bias : 0);
+  }
+  const neural = trainNetworkOnHistory(
+    returns,
+    volatilitySeries,
+    featureSeries,
+    Math.min(16, Math.max(8, Math.floor(Math.log(Math.max(2, prices.length)) * 4))),
+  );
 
   const last = prices[prices.length - 1];
 
@@ -152,8 +178,9 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     hurst: Math.max(0.05, Number(options?.adaptiveWeights?.hurst ?? hurstTrust)),
     indicators: 0.18, // VWAP-z + EMA-slope + MACD consolidated bias
     llm: 0,
+    neural: Math.max(0.05, Number(options?.adaptiveWeights?.neural ?? profile.neuralWeight)),
   };
-  const learnedSum = learned.arima + learned.hmm + learned.entropy + learned.hurst + learned.indicators + learned.llm;
+  const learnedSum = learned.arima + learned.hmm + learned.entropy + learned.hurst + learned.indicators + learned.llm + learned.neural;
   const weights = {
     arima: learned.arima / learnedSum,
     hmm: learned.hmm / learnedSum,
@@ -161,6 +188,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     hurst: learned.hurst / learnedSum,
     indicators: learned.indicators / learnedSum,
     llm: learned.llm / learnedSum,
+    neural: learned.neural / learnedSum,
   };
 
   // Build path keeping ARIMA wiggles intact. We split each step into
@@ -184,6 +212,8 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     ? Math.sign(options.leaderPrices[options.leaderPrices.length - 1] - options.leaderPrices[Math.max(0, options.leaderPrices.length - 6)])
       * te.crossTE * profile.transferEntropyWeight * garch.sigma * 0.6
     : 0;
+  const neuralSignal = Math.max(-1, Math.min(1, neural.forecast[0] ?? 0));
+  const neuralPush = neuralSignal * profile.neuralWeight * garch.sigma * last * 0.75;
   for (let i = 0; i < steps; i++) {
     const baseDrift = arima.driftPerStep * (i + 1);
     const wiggle = arimaPath[i] - last - baseDrift; // pure stochastic component
@@ -192,6 +222,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
       + hamPush * (i + 1) * 0.4
       + indicators.bias * weights.indicators * garch.sigma * 0.55 * (i + 1)
       + llmBias * llmConfidence * weights.llm * garch.sigma * 0.2 * (i + 1)
+      + neuralPush * (1 + i * 0.25)
       + jumpDriftPerStep * (i + 1)
       + hawkesPush * (i + 1)
       + tePush * (i + 1)
@@ -243,7 +274,8 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     0.30 * edge +
     0.28 * hmm.confidence +
     0.24 * regimeAgrees +
-    0.18 * hurstAgrees;
+    0.14 * hurstAgrees +
+    0.06 * neural.confidence;
   const consensus =
     (edge > 0.5 ? 1 : 0) +
     (hmm.confidence > 0.5 ? 1 : 0) +
@@ -264,6 +296,10 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     : direction === "down" ? (indicators.bias < -0.15 ? 1 : indicators.bias < 0 ? 0.5 : 0)
     : 0.4;
   const indicatorBoost = indicatorAgrees * 0.04;
+  const neuralAgreement =
+    (neuralSignal > 0.02 && direction === "up") ||
+    (neuralSignal < -0.02 && direction === "down");
+  const neuralBoost = neuralAgreement ? 0.03 : 0;
   // Phase B confidence penalties: cluster regimes & multifractal regime-shifts
   // shrink confidence because the system is in a fragile/transitional state.
   const hawkesPenalty = hawkes.cascadeProbability * profile.hawkesPenaltyMax;
@@ -271,8 +307,14 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     * profile.multifractalPenaltyMax;
   const finalConfidence = Math.max(
     0.50,
-    Math.min(0.92, hybridConfidence + indicatorBoost - hawkesPenalty - mfPenalty),
+    Math.min(0.92, hybridConfidence + indicatorBoost + neuralBoost - hawkesPenalty - mfPenalty),
   );
+
+  const directionScore = (finalPrice - last) / Math.max(1e-9, garch.sigma * Math.sqrt(Math.max(1, steps)));
+  const futureScore = 0.55 * directionScore + 0.25 * indicators.bias + 0.12 * neuralSignal + 0.08 * regimeBias;
+  const currentScore = 0.45 * indicators.bias + 0.25 * regimeBias + 0.2 * neuralSignal + 0.1 * (hmm.confidence - 0.5);
+  const currentSignal: "buy" | "sell" | "hold" = currentScore > 0.18 ? "buy" : currentScore < -0.18 ? "sell" : "hold";
+  const futureSignal: "buy" | "sell" | "hold" = futureScore > 0.16 ? "buy" : futureScore < -0.16 ? "sell" : "hold";
 
   // Fokker–Planck PDF at horizon (uses log-return drift+sigma from GARCH+jumps).
   const fpDrift = arima.driftPerStep / Math.max(1e-9, last); // log-return drift
@@ -282,7 +324,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   return {
     arima, garch, hmm, entropy, hurst, hamiltonian, indicators, qsl, ssl,
     kalman, jump, hawkes, wavelet, transferEntropy: te, multifractal,
-    fokkerPlanck, marketProfile: profile,
-    forecast, finalPrice, direction, hybridConfidence: finalConfidence, weights,
+    fokkerPlanck, marketProfile: profile, neural,
+    forecast, finalPrice, direction, currentSignal, futureSignal, hybridConfidence: finalConfidence, weights,
   };
 }

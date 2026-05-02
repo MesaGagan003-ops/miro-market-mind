@@ -9,13 +9,15 @@ import {
   ComposedChart, Line, Bar, Area, XAxis, YAxis, ResponsiveContainer,
   Tooltip, CartesianGrid, ReferenceLine,
 } from "recharts";
-import { sma, ema, macd, vwapProxy, superTrend, extractFeatures } from "@/lib/physics/indicators";
+import type { HybridResult } from "@/lib/physics/hybrid";
+import { sma, ema, macd, vwapProxy, superTrend, extractFeatures, fibonacciRetracement } from "@/lib/physics/indicators";
 
 interface Props {
   history: { ts: number; price: number }[];
+  prediction?: HybridResult | null;
 }
 
-export function IndicatorOverlayPanel({ history }: Props) {
+export function IndicatorOverlayPanel({ history, prediction }: Props) {
   const data = useMemo(() => {
     if (history.length < 30) return null;
     const prices = history.map((h) => h.price);
@@ -26,6 +28,7 @@ export function IndicatorOverlayPanel({ history }: Props) {
     const m = macd(prices);
     const vw = vwapProxy(prices, Math.min(60, prices.length));
     const st = superTrend(prices, 10, 3);
+    const fib = fibonacciRetracement(prices, Math.min(120, prices.length));
     const features = extractFeatures(prices);
     const rows = history.map((h, i) => ({
       t: h.ts,
@@ -43,7 +46,7 @@ export function IndicatorOverlayPanel({ history }: Props) {
       st: st.line[i],
       stDir: st.dir[i],
     }));
-    return { rows, features };
+    return { rows, features, fib };
   }, [history]);
 
   if (!data) {
@@ -59,7 +62,7 @@ export function IndicatorOverlayPanel({ history }: Props) {
     );
   }
 
-  const { rows, features } = data;
+  const { rows, features, fib } = data;
   const allPrices = rows.flatMap((r) =>
     [r.price, r.ma20, r.ma50, r.vwapU, r.vwapL, r.st].filter(
       (v): v is number => typeof v === "number",
@@ -68,6 +71,22 @@ export function IndicatorOverlayPanel({ history }: Props) {
   const min = Math.min(...allPrices);
   const max = Math.max(...allPrices);
   const pad = (max - min) * 0.05 || max * 0.001;
+  const latestPrice = rows[rows.length - 1]?.price ?? 0;
+  const currentSignal = features.bias > 0.18 ? "BUY" : features.bias < -0.18 ? "SELL" : "HOLD";
+  const futureSignal = prediction
+    ? prediction.futureSignal === "buy"
+      ? "BUY"
+      : prediction.futureSignal === "sell"
+        ? "SELL"
+        : "HOLD"
+    : "HOLD";
+  const futureTone = prediction
+    ? prediction.futureSignal === "buy"
+      ? "hsl(142 76% 50%)"
+      : prediction.futureSignal === "sell"
+        ? "hsl(0 84% 60%)"
+        : "hsl(50 95% 55%)"
+    : "hsl(50 95% 55%)";
 
   return (
     <div className="panel p-4 space-y-3">
@@ -96,9 +115,15 @@ export function IndicatorOverlayPanel({ history }: Props) {
         <div className="text-muted-foreground font-semibold mb-1">Purpose & Metrics</div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <span className="text-muted-foreground">MA Crossover Signal:</span>
-            <span className="font-bold text-foreground ml-1" style={{ color: features.emaSlopeFast >= 0 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
-              {features.emaSlopeFast >= 0 ? "↗ Uptrend" : "↘ Downtrend"}
+            <span className="text-muted-foreground">Current Market Signal:</span>
+            <span className="font-bold text-foreground ml-1" style={{ color: currentSignal === "BUY" ? "hsl(142 76% 50%)" : currentSignal === "SELL" ? "hsl(0 84% 60%)" : "hsl(50 95% 55%)" }}>
+              {currentSignal}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Future Market Signal:</span>
+            <span className="font-bold text-foreground ml-1" style={{ color: futureTone }}>
+              {futureSignal}
             </span>
           </div>
           <div>
@@ -112,9 +137,25 @@ export function IndicatorOverlayPanel({ history }: Props) {
             <span className="font-bold text-foreground ml-1">{Math.abs(features.vwapZ) < 0.5 ? "At VWAP" : features.vwapZ > 0 ? `${Math.abs(features.vwapZ).toFixed(1)}σ above` : `${Math.abs(features.vwapZ).toFixed(1)}σ below`}</span>
           </div>
           <div>
+            <span className="text-muted-foreground">Fibonacci Zone:</span>
+            <span className="font-bold text-foreground ml-1">{(fib.position * 100).toFixed(0)}% of range</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">SuperTrend:</span>
+            <span className="font-bold text-foreground ml-1" style={{ color: features.superTrendDir === 1 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
+              {features.superTrendDir === 1 ? "Bullish" : "Bearish"}
+            </span>
+          </div>
+          <div>
             <span className="text-muted-foreground">Model Weight:</span>
             <span className="font-bold text-foreground ml-1">{(features.bias * 100).toFixed(1)}% bullish bias</span>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-border/40">
+          <div>Fib 0.382: <span className="font-mono text-foreground">{formatPrice(fib.levels.level382)}</span></div>
+          <div>Fib 0.618: <span className="font-mono text-foreground">{formatPrice(fib.levels.level618)}</span></div>
+          <div>Nearest support: <span className="font-mono text-foreground">{formatPrice(fib.levels.level500)}</span></div>
+          <div>Spot: <span className="font-mono text-foreground">{formatPrice(latestPrice)}</span></div>
         </div>
       </div>
 

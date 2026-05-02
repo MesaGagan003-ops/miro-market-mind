@@ -11,13 +11,14 @@ export interface AdaptiveWeights {
   entropy: number;
   hurst: number;
   llm: number;
+  neural: number;
   samples: number;
   recentBrier: number;
   recentAccuracy: number;
 }
 
 const DEFAULT_WEIGHTS: AdaptiveWeights = {
-  arima: 0.48, hmm: 0.30, entropy: 0.14, hurst: 0.08, llm: 0,
+  arima: 0.48, hmm: 0.30, entropy: 0.14, hurst: 0.08, llm: 0, neural: 0.10,
   samples: 0, recentBrier: 0.25, recentAccuracy: 0.5,
 };
 
@@ -37,7 +38,7 @@ export async function loadWeights(market: string, symbol: string, timeframe: str
       const w: AdaptiveWeights = {
         arima: Number(data.arima_w), hmm: Number(data.hmm_w),
         entropy: Number(data.entropy_w), hurst: Number(data.hurst_w),
-        llm: Number(data.llm_w), samples: data.samples,
+        llm: Number(data.llm_w), neural: Number((data as any).neural_w ?? 0.1), samples: data.samples,
         recentBrier: Number(data.recent_brier),
         recentAccuracy: Number(data.recent_accuracy),
       };
@@ -161,11 +162,12 @@ async function updateWeightsFromOutcomes(
     entropy: current.entropy * (newAcc > 0.55 ? 1.0 : 0.99),
     hurst: current.hurst * (newAcc > 0.55 ? 1.0 : 0.99),
     llm: 0,
+    neural: current.neural,
   };
-  const sum = w.arima + w.hmm + w.entropy + w.hurst + w.llm;
+  const sum = w.arima + w.hmm + w.entropy + w.hurst + w.llm + w.neural;
   const norm = {
     arima: w.arima / sum, hmm: w.hmm / sum, entropy: w.entropy / sum,
-    hurst: w.hurst / sum, llm: w.llm / sum,
+    hurst: w.hurst / sum, llm: w.llm / sum, neural: w.neural / sum,
   };
 
   const next: AdaptiveWeights = {

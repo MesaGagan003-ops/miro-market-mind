@@ -25,6 +25,23 @@ export interface IndicatorPoint {
   superTrendDir?: 1 | -1;
 }
 
+export interface FibonacciLevels {
+  high: number;
+  low: number;
+  range: number;
+  position: number;
+  bias: number;
+  levels: {
+    level0: number;
+    level236: number;
+    level382: number;
+    level500: number;
+    level618: number;
+    level786: number;
+    level100: number;
+  };
+}
+
 // ---------- moving averages ----------
 export function sma(values: number[], period: number): (number | undefined)[] {
   const out: (number | undefined)[] = new Array(values.length).fill(undefined);
@@ -147,22 +164,55 @@ export function superTrend(values: number[], period = 10, mult = 3) {
   return { line: out, dir };
 }
 
+export function fibonacciRetracement(values: number[], lookback = 120): FibonacciLevels {
+  const slice = values.slice(Math.max(0, values.length - Math.max(10, lookback)));
+  const high = Math.max(...slice);
+  const low = Math.min(...slice);
+  const range = Math.max(1e-9, high - low);
+  const last = slice[slice.length - 1] ?? high;
+  const position = Math.max(0, Math.min(1, (last - low) / range));
+  const level0 = low;
+  const level236 = high - range * 0.236;
+  const level382 = high - range * 0.382;
+  const level500 = high - range * 0.5;
+  const level618 = high - range * 0.618;
+  const level786 = high - range * 0.786;
+  const level100 = high;
+  const supportBias = last >= level618 ? 0.35 : last >= level500 ? 0.18 : last <= level382 ? -0.28 : 0;
+  const extensionBias = position > 0.8 ? 0.15 : position < 0.2 ? -0.15 : 0;
+  return {
+    high,
+    low,
+    range,
+    position,
+    bias: Math.max(-1, Math.min(1, supportBias + extensionBias)),
+    levels: { level0, level236, level382, level500, level618, level786, level100 },
+  };
+}
+
 // ---------- combined feature extraction for the hybrid model ----------
 export interface IndicatorFeatures {
   vwapZ: number;          // current price's z-score vs rolling VWAP — mean-revert signal
   emaSlopeFast: number;   // EMA(20) slope per bar — trend velocity
   emaSlopeSlow: number;   // EMA(50) slope per bar — regime velocity
   macdHist: number;       // MACD histogram (momentum)
+  superTrendDir: 1 | -1;   // current supertrend direction
+  fibPosition: number;     // retracement position in [0, 1]
+  fibBias: number;         // Fibonacci support/resistance bias
   bias: number;           // [-1, 1] consolidated directional bias for hybrid
 }
 
 export function extractFeatures(prices: number[]): IndicatorFeatures {
-  if (prices.length < 30) return { vwapZ: 0, emaSlopeFast: 0, emaSlopeSlow: 0, macdHist: 0, bias: 0 };
+  if (prices.length < 30) {
+    return { vwapZ: 0, emaSlopeFast: 0, emaSlopeSlow: 0, macdHist: 0, superTrendDir: 1, fibPosition: 0.5, fibBias: 0, bias: 0 };
+  }
   const { z } = vwapProxy(prices, Math.min(60, prices.length));
   const vwapZ = z[z.length - 1] ?? 0;
   const sFast = emaSlope(prices, 20, 5);
   const sSlow = emaSlope(prices, 50, 10);
   const m = macd(prices);
+  const st = superTrend(prices, 10, 3);
+  const fib = fibonacciRetracement(prices, Math.min(120, prices.length));
   const histArr = m.hist.filter((v): v is number => v !== undefined);
   const macdHist = histArr[histArr.length - 1] ?? 0;
   const last = prices[prices.length - 1] || 1;
@@ -185,6 +235,9 @@ export function extractFeatures(prices: number[]): IndicatorFeatures {
   const meanRevert = -Math.tanh(vwapZ / 2.5) * 0.35;
   const trend = Math.tanh(0.6 * sFastZ + 0.4 * sSlowZ) * 0.45;
   const momentum = Math.tanh(macdZ * 0.5) * 0.25;
-  const bias = Math.max(-1, Math.min(1, meanRevert + trend + momentum));
-  return { vwapZ, emaSlopeFast: sFast, emaSlopeSlow: sSlow, macdHist, bias };
+  const superTrendDir = st.dir[st.dir.length - 1] ?? 1;
+  const superTrendBias = superTrendDir === 1 ? 0.12 : -0.12;
+  const fibBias = fib.bias * 0.22;
+  const bias = Math.max(-1, Math.min(1, meanRevert + trend + momentum + superTrendBias + fibBias));
+  return { vwapZ, emaSlopeFast: sFast, emaSlopeSlow: sSlow, macdHist, superTrendDir, fibPosition: fib.position, fibBias: fib.bias, bias };
 }

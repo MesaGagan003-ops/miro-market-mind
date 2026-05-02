@@ -25,6 +25,8 @@ export interface MarketPhysicsProfile {
   multifractalPenaltyMax: number;
   // Transfer-entropy weight applied to drift
   transferEntropyWeight: number;
+  // Neural-network influence on drift
+  neuralWeight: number;
   // Fokker–Planck band overlay enabled in chart?
   fokkerPlanckOverlay: boolean;
 }
@@ -37,6 +39,7 @@ const CRYPTO: MarketPhysicsProfile = {
   waveletSmoothing: 0.6,
   multifractalPenaltyMax: 0.10,
   transferEntropyWeight: 0.20,
+  neuralWeight: 0.12,
   fokkerPlanckOverlay: true,
 };
 
@@ -48,6 +51,7 @@ const EQUITY: MarketPhysicsProfile = {
   waveletSmoothing: 0.45,
   multifractalPenaltyMax: 0.08,
   transferEntropyWeight: 0.15,
+  neuralWeight: 0.08,
   fokkerPlanckOverlay: true,
 };
 
@@ -59,6 +63,7 @@ const FOREX: MarketPhysicsProfile = {
   waveletSmoothing: 0.55,
   multifractalPenaltyMax: 0.06,
   transferEntropyWeight: 0.25,  // FX has strong cross-pair info flow
+  neuralWeight: 0.10,
   fokkerPlanckOverlay: true,
 };
 

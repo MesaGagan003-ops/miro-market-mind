@@ -88,9 +88,23 @@ export function ModelPanels({ result, minutes }: Props) {
       <Panel
         title="Hidden Markov Model"
         accent="var(--hmm)"
-        subtitle="Forward + Viterbi over 3 latent regimes"
+        subtitle="Baum-Welch EM + Viterbi over 3 latent regimes"
         full
       >
+        <div className="grid grid-cols-3 gap-2 mb-3 text-[10px]">
+          <div className="rounded border border-border px-2 py-1.5">
+            <div className="text-muted-foreground uppercase">EM iterations</div>
+            <div className="text-foreground font-mono font-semibold">{hmm.emIterations ?? 0}</div>
+          </div>
+          <div className="rounded border border-border px-2 py-1.5">
+            <div className="text-muted-foreground uppercase">Log-likelihood</div>
+            <div className="text-foreground font-mono font-semibold">{(hmm.logLik ?? 0).toFixed(1)}</div>
+          </div>
+          <div className="rounded border border-border px-2 py-1.5">
+            <div className="text-muted-foreground uppercase">Viterbi length</div>
+            <div className="text-foreground font-mono font-semibold">{hmm.viterbiSamples ?? 0}</div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
@@ -118,7 +132,7 @@ export function ModelPanels({ result, minutes }: Props) {
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-              Transition matrix P(sₜ | sₜ₋₁) — learned from Viterbi path
+              Transition matrix P(sₜ | sₜ₋₁) — re-estimated by EM
             </div>
             <TransitionMatrix matrix={hmm.transitionMatrix} />
           </div>

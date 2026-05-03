@@ -229,22 +229,28 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     // No synthetic sin/cos overlay — that produced the wig-wag pattern.
     const arimaWiggle = arimaPath[i] - last - baseDrift;
     // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
-    const auxDrift =
-        regimeBias * garch.sigma * 0.18 * sqrtT
-      + hamPush * sqrtT * 0.4
-      + indicators.bias * weights.indicators * garch.sigma * 0.45 * sqrtT
-      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.2 * sqrtT
-      + neuralPush * sqrtT * 0.5
-      + jumpDriftPerStep * tStep         // jump drift IS an expectation, keep linear but it's already small
-      + hawkesPush * sqrtT
-      + tePush * sqrtT
-      + crossTePush * sqrtT;
+    const auxDriftRaw =
+        regimeBias * garch.sigma * 0.10 * sqrtT
+      + hamPush * sqrtT * 0.25
+      + indicators.bias * weights.indicators * garch.sigma * 0.28 * sqrtT
+      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.15 * sqrtT
+      + neuralPush * sqrtT * 0.35
+      + jumpDriftPerStep * sqrtT * 0.6
+      + hawkesPush * sqrtT * 0.6
+      + tePush * sqrtT * 0.7
+      + crossTePush * sqrtT * 0.7;
+    // Soft-cap aux drift to ±1.2·σ·√t BEFORE clipping the price. This prevents
+    // bullish/bearish auxiliary stacks from overwhelming the band and pinning
+    // the forecast to a smooth QSL boundary curve (kills the wiggle).
+    const auxCap = 1.2 * garch.sigma * sqrtT;
+    const auxDrift = Math.max(-auxCap, Math.min(auxCap, auxDriftRaw));
     const trend = baseDrift + auxDrift * trustTrend;
-    let price = last + trend + arimaWiggle;
-    // QSL hard clip — also clamp the trend itself so a single blown component cannot escape.
-    const qslU = last + 2.4 * garch.sigma * sqrtT;
-    const qslL = last - 2.4 * garch.sigma * sqrtT;
-    price = Math.min(qslU, Math.max(qslL, price));
+    // Clip the TREND to the QSL band, then add the wiggle on top so wiggles
+    // are always visible regardless of how strong the directional consensus is.
+    const qslU = 2.4 * garch.sigma * sqrtT;
+    const qslL = -2.4 * garch.sigma * sqrtT;
+    const trendClipped = Math.min(qslU * 0.85, Math.max(qslL * 0.85, trend));
+    const price = last + trendClipped + arimaWiggle;
     raw.push(price);
   }
 

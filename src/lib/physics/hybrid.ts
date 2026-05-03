@@ -229,10 +229,9 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     const tStep = i + 1;
     const sqrtT = Math.sqrt(tStep);
     const baseDrift = arima.driftPerStep * tStep; // ARIMA drift IS linear in time (it's an expectation)
-    const arimaWiggle = (arimaPath[i] - last - baseDrift) * 0.6;
-    const cycleA = Math.sin(tStep * 1.35 + wigglePhase) * wiggleScale;
-    const cycleB = Math.cos(tStep * 2.1 + wigglePhase * 0.7) * wiggleScale * 0.45;
-    const microWiggle = cycleA + cycleB;
+    // Wiggles come ONLY from the trained ARIMA(2,1,1) stochastic recursion.
+    // No synthetic sin/cos overlay — that produced the wig-wag pattern.
+    const arimaWiggle = arimaPath[i] - last - baseDrift;
     // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
     const auxDrift =
         regimeBias * garch.sigma * 0.18 * sqrtT
@@ -245,7 +244,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
       + tePush * sqrtT
       + crossTePush * sqrtT;
     const trend = baseDrift + auxDrift * trustTrend;
-    let price = last + trend + arimaWiggle + microWiggle;
+    let price = last + trend + arimaWiggle;
     // QSL hard clip — also clamp the trend itself so a single blown component cannot escape.
     const qslU = last + 2.4 * garch.sigma * sqrtT;
     const qslL = last - 2.4 * garch.sigma * sqrtT;

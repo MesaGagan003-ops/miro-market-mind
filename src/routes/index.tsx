@@ -38,6 +38,7 @@ import { TradingReadinessAlert } from "@/components/TradingReadinessAlert";
 import { IndicatorOverlayPanel } from "@/components/IndicatorOverlayPanel";
 import { fetchCoinNews } from "@/lib/news";
 import { getDecayedLlmSignal, peekDecayedSignal } from "@/lib/llmCache";
+import { StrategicPlanPanel } from "@/components/StrategicPlanPanel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -468,6 +469,22 @@ function PredictionEngine() {
             <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
           )}
         </div>
+
+        {/* Strategic Plan Panel: Game Theory Analysis */}
+        {prediction && currentPrice > 0 ? (
+          <div className="panel p-4">
+            <h2 className="font-display font-semibold text-foreground mb-4">
+              <span className="text-primary">Strategic Plan</span> · Game-Theoretic Market Analysis
+            </h2>
+            <StrategicPlanPanel
+              prediction={prediction}
+              currentPrice={currentPrice}
+              recentPrices={modelSeries}
+              dataQualityScore={dataQuality.score}
+              llmSignal={llmSignal}
+            />
+          </div>
+        ) : null}
 
         {/* News + sentiment-adjusted forecast */}
         <NewsPanel

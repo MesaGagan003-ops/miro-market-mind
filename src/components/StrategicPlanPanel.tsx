@@ -149,12 +149,13 @@ export function StrategicPlanPanel({
   const ensembleWeights = useMemo(() => {
     const weights = {
       arima: prediction.weights.arima * (agentAnalysis?.convergence ?? 0.5),
-      garch: prediction.weights.garch * (volatilityOpportunity?.ratio ?? 1),
+      garch: (prediction.weights as any).garch ? (prediction.weights as any).garch * (volatilityOpportunity?.ratio ?? 1) : 0.15,
       hmm: prediction.weights.hmm * (equilibriumAnalysis?.stability ?? 0.5),
       entropy: prediction.weights.entropy * dataQualityScore,
       hurst: prediction.weights.hurst * (agentAnalysis?.convergence ?? 0.5),
       neural: prediction.weights.neural * prediction.hybridConfidence,
       llm: llmSignal.confidence,
+      indicators: (prediction.weights as any).indicators ? (prediction.weights as any).indicators * (agentAnalysis?.convergence ?? 0.5) : 0.12,
     };
 
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -387,20 +388,84 @@ export function StrategicPlanPanel({
         </Card>
       </div>
 
-      {/* Ensemble Model Weighting */}
-      <Card className="panel p-4">
-        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
-          Ensemble Model Weights (Game-Theory Adjusted)
-        </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 text-[10px]">
-          {Object.entries(ensembleWeights).map(([model, weight]) => (
-            <div key={model} className="bg-card p-2 rounded border border-border/50 text-center">
-              <div className="uppercase text-[8px] text-muted-foreground mb-1">{model}</div>
-              <div className="text-sm font-bold text-foreground">{weight}%</div>
+      {/* Physics-Based Model Confidence Scores */}
+      <div className="space-y-3">
+        <Card className="panel p-4">
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
+            Physics-Based Model Confidence Scores
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 text-[10px]">
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">ARIMA(2,1,1)</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.arima || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Shock-driven recursion</div>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">GARCH(1,1)</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.garch || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Vol persistence</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">HMM Regime</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.hmm || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Bull/bear drift</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Entropy</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.entropy || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Noise damping</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Hurst</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.hurst || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Trending factor</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Neural Network</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.neural || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Pattern learning</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">LLM Sentiment</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.llm || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">News bias</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Indicators</div>
+              <div className="text-sm font-bold text-foreground">{((prediction.weights.indicators || 0) * 100).toFixed(1)}%</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Technical signals</div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="panel p-4">
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
+            Advanced Physics Models (Speed Limits & Stochastic Bounds)
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-[10px]">
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">QSL (Quantum)</div>
+              <div className="text-sm font-bold text-foreground">Hard Clip</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">±2.4σ·√N Mandelstam-Tamm</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">SSL (Stochastic)</div>
+              <div className="text-sm font-bold text-foreground">95% Band</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">μT ± 1.96σ√T Itô</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Hamiltonian</div>
+              <div className="text-sm font-bold text-foreground">Energy</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Velocity bias</div>
+            </div>
+            <div className="bg-card p-2 rounded border border-border/50">
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">Kalman Filter</div>
+              <div className="text-sm font-bold text-foreground">Pre-Filter</div>
+              <div className="text-[8px] text-muted-foreground mt-0.5">Micro-noise removal</div>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Strategy Rationale */}
       <Card className="panel p-4 bg-card/50">

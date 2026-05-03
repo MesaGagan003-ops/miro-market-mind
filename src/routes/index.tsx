@@ -39,6 +39,7 @@ import { IndicatorOverlayPanel } from "@/components/IndicatorOverlayPanel";
 import { fetchCoinNews } from "@/lib/news";
 import { getDecayedLlmSignal, peekDecayedSignal } from "@/lib/llmCache";
 import { StrategicPlanPanel } from "@/components/StrategicPlanPanel";
+import { TechnicalIndicatorMetrics } from "@/components/TechnicalIndicatorMetrics";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -404,7 +405,7 @@ function PredictionEngine() {
           <ProviderHealthPanel items={healthItems} />
         </div>
 
-        {/* Top: chart + accuracy */}
+        {/* Panel 1: Forecast + Accuracy Tracker (side by side) with NEWS */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4">
           <div className="panel p-4 scan-line">
             <div className="flex items-baseline justify-between mb-3">
@@ -459,22 +460,71 @@ function PredictionEngine() {
             <ChartLegend />
           </div>
 
-          {prediction ? (
-            <AccuracyTracker
-              stats={stats}
-              currentDirection={prediction.direction}
-              confidence={prediction.hybridConfidence}
+          <div className="space-y-3">
+            {/* Directional Accuracy Panel */}
+            {prediction ? (
+              <AccuracyTracker
+                stats={stats}
+                currentDirection={prediction.direction}
+                confidence={prediction.hybridConfidence}
+              />
+            ) : (
+              <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
+            )}
+
+            {/* News + Sentiment Panel (inside right sidebar) */}
+            <div className="panel p-3 bg-card/50">
+              <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                News & Sentiment
+              </h3>
+              <div className="text-[10px] text-muted-foreground leading-relaxed">
+                {llmSignal.rationale ? (
+                  <div>
+                    <div className="text-foreground font-semibold mb-1">{llmSignal.rationale}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-border rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${llmSignal.confidence * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-semibold">{(llmSignal.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  "Loading sentiment analysis…"
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 2: Technical Indicator Overlay + Metrics (side by side) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+          <div className="panel p-4">
+            <h2 className="font-display font-semibold text-foreground mb-3">
+              Technical Indicator Overlay · Price Action Analysis
+            </h2>
+            <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
+          </div>
+
+          {prediction && (
+            <TechnicalIndicatorMetrics
+              prediction={prediction}
+              currentPrice={currentPrice}
+              recentPrices={modelSeries}
             />
-          ) : (
-            <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
           )}
         </div>
 
-        {/* Strategic Plan Panel: Game Theory Analysis */}
+        {/* Panel 3: Demo Trading */}
+        <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
+
+        {/* Panel 4: Strategic Plan (Game Theory Analysis) */}
         {prediction && currentPrice > 0 ? (
           <div className="panel p-4">
             <h2 className="font-display font-semibold text-foreground mb-4">
-              <span className="text-primary">Strategic Plan</span> · Game-Theoretic Market Analysis
+              <span className="text-primary">Strategic Plan</span> · Game-Theoretic & Physics-Based Analysis
             </h2>
             <StrategicPlanPanel
               prediction={prediction}
@@ -486,40 +536,24 @@ function PredictionEngine() {
           </div>
         ) : null}
 
-        {/* News + sentiment-adjusted forecast */}
-        <NewsPanel
-          coin={coin}
-          prediction={prediction}
-          currentPrice={currentPrice}
-          history={ticks.map((t) => ({ ts: t.ts, price: t.price }))}
-          minutesPerStep={minutesPerStep}
-        />
-
-        {/* Demo trading */}
-        <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
-
-        {/* Model panels */}
+        {/* Panel 5-12: Individual Physics Models (from ModelPanels) */}
         {prediction && (
           <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
         )}
 
-        {/* Technical indicator overlay (visual context on actual line + features that feed the model) */}
-        <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
-
+        {/* Panel 13: Adaptive Trainer */}
         <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
 
-        {/* P0: walk-forward backtest with costs */}
+        {/* Panel 14: Walk-Forward Backtest (cost-adjusted) */}
         <WalkForwardPanel coin={coin} />
 
-        {/* P0: calibration of probabilistic confidence */}
+        {/* Panel 15: Calibration · Reliability Diagram */}
         <CalibrationPanel coin={coin} timeframe={timeframe} />
 
-        {/* P0: cost-adjusted performance across ALL assets */}
+        {/* Panel 16: Cost-Adjusted Performance · all assets */}
         <PerformanceTable />
 
-        <ComparisonPanel coin={coin} />
-
-        {/* Footer note */}
+        {/* How the model cooperates (educational explanation) */}
         <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">How the models cooperate:</strong> ARIMA(2,1,1) is
           fit by SSE-minimising (φ₁, φ₂, θ) on differenced prices and produces a recursive,

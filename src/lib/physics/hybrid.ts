@@ -221,8 +221,6 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   const recentVol = recentWindow.length > 1
     ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)
     : garch.sigmaReturn;
-  const wiggleScale = last * Math.max(0.0005, Math.min(0.018, recentVol * (0.9 + 0.2 * hurstTrust)));
-  const wigglePhase = ((prices.length * 9301 + Math.round(last * 1000)) % 360) * (Math.PI / 180);
   // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
   // growth was pushing the predicted line wildly off the actual price by the
   // end of the horizon. sqrt-growth matches the natural diffusion scale of

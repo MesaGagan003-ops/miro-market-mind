@@ -64,10 +64,6 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
     <div className="space-y-2">
       <div className="flex justify-between items-baseline text-[10px] px-2">
         <span className="text-muted-foreground">Forecast: {prediction.forecast.length} steps · {(prediction.forecast.length * minutesPerStep).toFixed(0)} min horizon</span>
-        <div className="flex gap-3">
-          <div><span className="text-muted-foreground">Confidence: </span><span className="font-bold text-foreground">{(prediction.hybridConfidence * 100).toFixed(0)}%</span></div>
-          <div><span className="text-muted-foreground">Predicted direction: </span><span className="font-bold" style={{ color: directionColor }}>{predictionDirection} ({Math.abs(predictionReturn).toFixed(2)}%)</span></div>
-        </div>
       </div>
       <ResponsiveContainer width="100%" height={420}>
         <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
@@ -128,14 +124,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 text-[9px] px-2 pb-2">
-        <Legend c="oklch(0.72 0.18 230)" l="Actual price" />
-        <Legend c="oklch(0.65 0.24 25)" l="Predicted price" />
-        <Legend c="oklch(0.75 0.18 60)" l="GARCH ±1σ" dash />
-        <Legend c="oklch(0.78 0.18 130)" l="SSL bounds" dash />
-        <Legend c="oklch(0.72 0.22 305)" l="QSL envelope" dash />
-      </div>
+
     </div>
   );
 }

@@ -212,8 +212,11 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     ? Math.sign(options.leaderPrices[options.leaderPrices.length - 1] - options.leaderPrices[Math.max(0, options.leaderPrices.length - 6)])
       * te.crossTE * profile.transferEntropyWeight * garch.sigma * 0.6
     : 0;
-  const neuralSignal = Math.max(-1, Math.min(1, neural.forecast[0] ?? 0));
-  const neuralPush = neuralSignal * profile.neuralWeight * garch.sigma * last * 0.75;
+  // Neural forecast is a LOG-RETURN. Convert to price units via lastPrice
+  // (NOT garch.sigma * last — sigma is already in price units, double-scaling
+  // was sending the predicted line miles away from spot).
+  const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
+  const neuralPush = neuralSignal * last * profile.neuralWeight;
   const recentWindow = returns.slice(-Math.max(8, Math.min(24, returns.length)));
   const recentVol = recentWindow.length > 1
     ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)

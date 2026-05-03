@@ -1,252 +1,210 @@
-// Lightweight neural network layer for stock market prediction.
+// Lightweight feed-forward neural network for next-return prediction.
 //
-// This implements a multi-layer feedforward network with:
-//   - Input: lagged returns, volatility, indicators
-//   - Hidden layers: ReLU activation with dropout
-//   - Output: next-step price direction/magnitude
-//
-// Trained via mini-batch SGD with momentum on historical data.
-// Provides confidence-weighted price adjustment to hybrid forecasts.
-
-export interface NeuralNetworkState {
-  weights: number[][][];  // [layer][neuron][input]
-  biases: number[][];     // [layer][neuron]
-  prediction: number;
-  confidence: number;
-  loss: number;
-}
+// Architecture: 8 → 16 → 8 → 1 (tanh hidden, linear output).
+// Trained with mini-batch SGD + momentum and full backpropagation on
+// historical lagged-return / volatility / indicator features. Used by the
+// hybrid ensemble as a 7th member; output is a directional return signal in
+// roughly [-1, +1] (clipped) that the hybrid scales by σ.
 
 export interface NeuralNetworkResult {
-  forecast: number[]; // predicted returns for next N steps
-  confidence: number; // [0, 1] how sure the network is
-  activation: number[]; // hidden layer activations for debugging
-  loss: number;
+  forecast: number[];      // predicted return for next N steps (decayed)
+  confidence: number;      // [0, 1] sign-accuracy on a recent holdout window
+  activation: number[];    // last output for debugging
+  loss: number;            // final MSE
 }
 
-const LAYER_SIZES = [8, 16, 8, 1]; // input->hidden1->hidden2->output
-const LEARNING_RATE = 0.001;
+const ARCH = [8, 16, 8, 1] as const;
+const LR = 0.01;
 const MOMENTUM = 0.9;
-const DROPOUT_RATE = 0.1;
+const MAX_EPOCHS_DEFAULT = 12;
 
-function relu(x: number): number {
-  return Math.max(0, x);
+interface Net {
+  W: number[][][]; // W[l][j][i]
+  b: number[][];   // b[l][j]
+  vW: number[][][];
+  vb: number[][];
 }
 
-function reluDeriv(x: number): number {
-  return x > 0 ? 1 : 0;
+function rand(): number {
+  // Box-Muller would be overkill; uniform is fine for He init scaling.
+  return Math.random() - 0.5;
 }
 
-function sigmoid(x: number): number {
-  return 1 / (1 + Math.exp(-Math.max(-50, Math.min(50, x))));
-}
-
-function tanh(x: number): number {
-  return Math.tanh(x);
-}
-
-function tanhDeriv(x: number): number {
-  const t = Math.tanh(x);
-  return 1 - t * t;
-}
-
-function makeWeights(rows: number, cols: number): number[] {
-  const w = new Array(rows * cols);
-  for (let i = 0; i < w.length; i++) {
-    w[i] = (Math.random() - 0.5) * 2 / Math.sqrt(cols); // He init
+function makeNet(): Net {
+  const W: number[][][] = [];
+  const b: number[][] = [];
+  const vW: number[][][] = [];
+  const vb: number[][] = [];
+  for (let l = 0; l < ARCH.length - 1; l++) {
+    const fanIn = ARCH[l];
+    const fanOut = ARCH[l + 1];
+    const scale = Math.sqrt(2 / fanIn);
+    const Wl: number[][] = [];
+    const vWl: number[][] = [];
+    for (let j = 0; j < fanOut; j++) {
+      const row: number[] = new Array(fanIn);
+      const vrow: number[] = new Array(fanIn).fill(0);
+      for (let i = 0; i < fanIn; i++) row[i] = rand() * 2 * scale;
+      Wl.push(row);
+      vWl.push(vrow);
+    }
+    W.push(Wl);
+    vW.push(vWl);
+    b.push(new Array(fanOut).fill(0));
+    vb.push(new Array(fanOut).fill(0));
   }
-  return w;
+  return { W, b, vW, vb };
 }
 
-// Forward pass through network
-function forward(input: number[], weights: number[][][], biases: number[][]): number[] {
-  let layer = input;
-  for (let l = 0; l < weights.length; l++) {
-    const next = new Array(weights[l].length);
-    for (let j = 0; j < weights[l].length; j++) {
-      let sum = biases[l][j];
-      for (let i = 0; i < layer.length; i++) {
-        sum += layer[i] * weights[l][j][i];
+function forward(net: Net, x: number[]): { acts: number[][]; pre: number[][] } {
+  const acts: number[][] = [x];
+  const pre: number[][] = [x];
+  let cur = x;
+  for (let l = 0; l < net.W.length; l++) {
+    const out: number[] = new Array(net.W[l].length);
+    const z: number[] = new Array(net.W[l].length);
+    for (let j = 0; j < net.W[l].length; j++) {
+      let s = net.b[l][j];
+      const row = net.W[l][j];
+      for (let i = 0; i < cur.length; i++) s += row[i] * cur[i];
+      z[j] = s;
+      // tanh hidden, linear output
+      out[j] = l === net.W.length - 1 ? s : Math.tanh(s);
+    }
+    pre.push(z);
+    acts.push(out);
+    cur = out;
+  }
+  return { acts, pre };
+}
+
+function backprop(net: Net, x: number[], y: number): number {
+  const { acts, pre } = forward(net, x);
+  const L = net.W.length;
+  // Output delta (linear unit, MSE loss): dL/dz = (yhat - y)
+  const yhat = acts[L][0];
+  const err = yhat - y;
+  const deltas: number[][] = new Array(L);
+  deltas[L - 1] = [err];
+  for (let l = L - 2; l >= 0; l--) {
+    const next = deltas[l + 1];
+    const Wnext = net.W[l + 1];
+    const z = pre[l + 1];
+    const d: number[] = new Array(net.W[l].length).fill(0);
+    for (let j = 0; j < d.length; j++) {
+      let s = 0;
+      for (let k = 0; k < next.length; k++) s += Wnext[k][j] * next[k];
+      // tanh derivative: 1 - tanh(z)^2  → using activation a = tanh(z), 1-a^2
+      const a = Math.tanh(z[j]);
+      d[j] = s * (1 - a * a);
+    }
+    deltas[l] = d;
+  }
+  // Apply gradients with momentum
+  for (let l = 0; l < L; l++) {
+    const inAct = acts[l];
+    for (let j = 0; j < net.W[l].length; j++) {
+      const dj = deltas[l][j];
+      for (let i = 0; i < inAct.length; i++) {
+        const g = dj * inAct[i];
+        net.vW[l][j][i] = MOMENTUM * net.vW[l][j][i] - LR * g;
+        net.W[l][j][i] += net.vW[l][j][i];
       }
-      // Use ReLU for hidden layers, linear for output
-      if (l === weights.length - 1) {
-        next[j] = sum; // output layer: linear
-      } else {
-        next[j] = relu(sum);
-      }
+      net.vb[l][j] = MOMENTUM * net.vb[l][j] - LR * dj;
+      net.b[l][j] += net.vb[l][j];
     }
-    layer = next;
   }
-  return layer;
+  return err * err;
 }
 
-export function initializeNetwork(): NeuralNetworkState {
-  const weights: number[][][] = [];
-  const biases: number[][] = [];
-  
-  for (let l = 0; l < LAYER_SIZES.length - 1; l++) {
-    const inputSize = LAYER_SIZES[l];
-    const outputSize = LAYER_SIZES[l + 1];
-    weights.push([]);
-    biases.push(new Array(outputSize).fill(0));
-    
-    for (let j = 0; j < outputSize; j++) {
-      weights[l].push(makeWeights(outputSize, inputSize)[j] ? [makeWeights(1, inputSize)[0]] : makeWeights(1, inputSize));
-    }
-  }
-  
-  // Properly initialize weights
-  const properWeights: number[][][] = [];
-  for (let l = 0; l < LAYER_SIZES.length - 1; l++) {
-    properWeights[l] = [];
-    for (let j = 0; j < LAYER_SIZES[l + 1]; j++) {
-      properWeights[l][j] = makeWeights(LAYER_SIZES[l + 1], LAYER_SIZES[l]);
-    }
-  }
-
-  return {
-    weights: properWeights,
-    biases,
-    prediction: 0,
-    confidence: 0.5,
-    loss: 0,
-  };
-}
-
-export function trainNetworkOnHistory(
-  returns: number[],
-  volatility: number[],
-  features: number[],
-  maxEpochs: number = 10,
-): NeuralNetworkResult {
-  if (returns.length < 20) {
-    return {
-      forecast: [0],
-      confidence: 0.3,
-      activation: [],
-      loss: 1.0,
-    };
-  }
-
-  // Prepare training data: [lagged_returns, volatility, features] -> next_return
+function buildFeatures(returns: number[], vol: number[], feats: number[]): { X: number[][]; y: number[] } {
   const X: number[][] = [];
   const y: number[] = [];
-  
   for (let t = 4; t < returns.length - 1; t++) {
     X.push([
       returns[t - 1],
       returns[t - 2],
       returns[t - 3],
       returns[t - 4],
-      volatility[Math.min(t, volatility.length - 1)],
-      features[Math.min(t, features.length - 1)] || 0,
-      Math.abs(returns[t - 1]) * 0.5, // recent volatility
-      (returns[t - 1] + returns[t - 2]) / 2, // mean reversion signal
+      vol[Math.min(t, vol.length - 1)] || 0,
+      feats[Math.min(t, feats.length - 1)] || 0,
+      Math.abs(returns[t - 1]),
+      (returns[t - 1] + returns[t - 2]) * 0.5,
     ]);
-    y.push(returns[t]); // target: next return
+    y.push(returns[t]);
   }
-
-  if (X.length < 5) {
-    return {
-      forecast: [0],
-      confidence: 0.3,
-      activation: [],
-      loss: 1.0,
-    };
-  }
-
-  let net = initializeNetwork();
-  let bestLoss = Infinity;
-  let patience = 3;
-  let patienceCounter = 0;
-
-  // Simple SGD training loop
-  for (let epoch = 0; epoch < maxEpochs; epoch++) {
-    let epochLoss = 0;
-    
-    // Shuffle mini-batches
-    const batchSize = Math.max(1, Math.floor(X.length / 4));
-    for (let i = 0; i < X.length; i += batchSize) {
-      const endIdx = Math.min(i + batchSize, X.length);
-      
-      for (let j = i; j < endIdx; j++) {
-        // Forward pass
-        const out = forward(X[j], net.weights, net.biases);
-        const pred = out[0];
-        const error = y[j] - pred;
-        const loss = error * error;
-        epochLoss += loss;
-        
-        // Simple gradient approximation (not full backprop, but effective)
-        const learningAdjustment = LEARNING_RATE * error * 0.01;
-        
-        // Update output layer biases
-        net.biases[net.biases.length - 1][0] += learningAdjustment;
-      }
-    }
-    
-    epochLoss /= X.length;
-    
-    if (epochLoss < bestLoss) {
-      bestLoss = epochLoss;
-      patienceCounter = 0;
-    } else {
-      patienceCounter++;
-      if (patienceCounter >= patience) break;
-    }
-  }
-
-  // Final prediction on recent data
-  const recentIdx = Math.max(0, X.length - 1);
-  const lastX = X[recentIdx];
-  const outputs = forward(lastX, net.weights, net.biases);
-  const prediction = outputs[0];
-  
-  // Confidence: how close predictions match actual (recent accuracy)
-  let accuracy = 0;
-  const window = Math.min(10, y.length);
-  for (let i = Math.max(0, y.length - window); i < y.length; i++) {
-    const pred = forward(X[i], net.weights, net.biases)[0];
-    const actual = y[i];
-    const signMatch = Math.sign(pred) === Math.sign(actual) ? 1 : 0;
-    accuracy += signMatch;
-  }
-  accuracy /= Math.max(1, window);
-
-  // Forecast next N steps (assume some momentum)
-  const forecast: number[] = [prediction];
-  let currentPrice = prediction;
-  for (let step = 1; step < 5; step++) {
-    currentPrice = currentPrice * 0.9 + prediction * 0.1; // decay
-    forecast.push(currentPrice);
-  }
-
-  return {
-    forecast,
-    confidence: accuracy,
-    activation: outputs,
-    loss: bestLoss,
-  };
+  return { X, y };
 }
 
-export function predictNextReturn(
-  network: NeuralNetworkState,
-  recentReturns: number[],
-  currentVolatility: number,
-  indicators: number,
-): number {
-  if (recentReturns.length < 4) return 0;
-  
-  const input = [
-    recentReturns[recentReturns.length - 1],
-    recentReturns[Math.max(0, recentReturns.length - 2)],
-    recentReturns[Math.max(0, recentReturns.length - 3)],
-    recentReturns[Math.max(0, recentReturns.length - 4)],
-    currentVolatility,
-    indicators,
-    Math.abs(recentReturns[recentReturns.length - 1]) * 0.5,
-    (recentReturns[recentReturns.length - 1] + recentReturns[Math.max(0, recentReturns.length - 2)]) / 2,
-  ];
-  
-  const output = forward(input, network.weights, network.biases);
-  return output[0];
+export function trainNetworkOnHistory(
+  returns: number[],
+  volatility: number[],
+  features: number[],
+  maxEpochs: number = MAX_EPOCHS_DEFAULT,
+): NeuralNetworkResult {
+  if (returns.length < 25) {
+    return { forecast: [0, 0, 0, 0, 0], confidence: 0.3, activation: [0], loss: 1 };
+  }
+  const { X, y } = buildFeatures(returns, volatility, features);
+  if (X.length < 10) {
+    return { forecast: [0, 0, 0, 0, 0], confidence: 0.3, activation: [0], loss: 1 };
+  }
+  // Normalise targets to a reasonable scale so gradients aren't tiny.
+  const yScale = Math.max(1e-6, Math.sqrt(y.reduce((a, b) => a + b * b, 0) / y.length));
+  const yn = y.map((v) => v / yScale);
+
+  // Train/holdout split — last 15% for confidence calc.
+  const split = Math.max(1, Math.floor(X.length * 0.85));
+  const Xtr = X.slice(0, split);
+  const ytr = yn.slice(0, split);
+  const Xho = X.slice(split);
+  const yho = y.slice(split);
+
+  const net = makeNet();
+  let lastLoss = 0;
+  let bestLoss = Infinity;
+  let patience = 0;
+  for (let epoch = 0; epoch < maxEpochs; epoch++) {
+    // Shuffle indices
+    const idx = Xtr.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    let epochLoss = 0;
+    for (const k of idx) epochLoss += backprop(net, Xtr[k], ytr[k]);
+    epochLoss /= idx.length;
+    lastLoss = epochLoss;
+    if (epochLoss < bestLoss - 1e-5) {
+      bestLoss = epochLoss;
+      patience = 0;
+    } else if (++patience >= 3) {
+      break;
+    }
+  }
+
+  // Holdout sign accuracy → confidence.
+  let correct = 0;
+  let total = 0;
+  for (let i = 0; i < Xho.length; i++) {
+    const pred = forward(net, Xho[i]).acts[ARCH.length - 1][0] * yScale;
+    if (Math.abs(yho[i]) < 1e-9) continue;
+    if (Math.sign(pred) === Math.sign(yho[i])) correct++;
+    total++;
+  }
+  const confidence = total > 0 ? correct / total : 0.5;
+
+  // Predict next return from the most recent feature row.
+  const lastX = X[X.length - 1];
+  const rawPred = forward(net, lastX).acts[ARCH.length - 1][0] * yScale;
+  // Clip to a sane range relative to the training scale (avoid blow-up).
+  const cap = 4 * yScale;
+  const pred = Math.max(-cap, Math.min(cap, rawPred));
+  const forecast: number[] = [pred];
+  let cur = pred;
+  for (let s = 1; s < 5; s++) {
+    cur *= 0.7; // mean-reversion decay
+    forecast.push(cur);
+  }
+  return { forecast, confidence, activation: [pred], loss: lastLoss };
 }

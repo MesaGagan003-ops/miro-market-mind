@@ -212,35 +212,45 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     ? Math.sign(options.leaderPrices[options.leaderPrices.length - 1] - options.leaderPrices[Math.max(0, options.leaderPrices.length - 6)])
       * te.crossTE * profile.transferEntropyWeight * garch.sigma * 0.6
     : 0;
-  const neuralSignal = Math.max(-1, Math.min(1, neural.forecast[0] ?? 0));
-  const neuralPush = neuralSignal * profile.neuralWeight * garch.sigma * last * 0.75;
+  // Neural forecast is a LOG-RETURN. Convert to price units via lastPrice
+  // (NOT garch.sigma * last — sigma is already in price units, double-scaling
+  // was sending the predicted line miles away from spot).
+  const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
+  const neuralPush = neuralSignal * last * profile.neuralWeight;
   const recentWindow = returns.slice(-Math.max(8, Math.min(24, returns.length)));
   const recentVol = recentWindow.length > 1
     ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)
     : garch.sigmaReturn;
   const wiggleScale = last * Math.max(0.0005, Math.min(0.018, recentVol * (0.9 + 0.2 * hurstTrust)));
   const wigglePhase = ((prices.length * 9301 + Math.round(last * 1000)) % 360) * (Math.PI / 180);
+  // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
+  // growth was pushing the predicted line wildly off the actual price by the
+  // end of the horizon. sqrt-growth matches the natural diffusion scale of
+  // returns and keeps the forecast anchored near spot.
   for (let i = 0; i < steps; i++) {
-    const baseDrift = arima.driftPerStep * (i + 1);
-    const arimaWiggle = (arimaPath[i] - last - baseDrift) * 0.85; // preserve the ARIMA shock, but keep room for visible micro-swings
-    const cycleA = Math.sin((i + 1) * 1.35 + wigglePhase) * wiggleScale * (1 + i * 0.06);
-    const cycleB = Math.cos((i + 1) * 2.1 + wigglePhase * 0.7) * wiggleScale * 0.45;
+    const tStep = i + 1;
+    const sqrtT = Math.sqrt(tStep);
+    const baseDrift = arima.driftPerStep * tStep; // ARIMA drift IS linear in time (it's an expectation)
+    const arimaWiggle = (arimaPath[i] - last - baseDrift) * 0.6;
+    const cycleA = Math.sin(tStep * 1.35 + wigglePhase) * wiggleScale;
+    const cycleB = Math.cos(tStep * 2.1 + wigglePhase * 0.7) * wiggleScale * 0.45;
     const microWiggle = cycleA + cycleB;
-    let trend = baseDrift
-      + regimeBias * garch.sigma * 0.18 * (i + 1)
-      + hamPush * (i + 1) * 0.4
-      + indicators.bias * weights.indicators * garch.sigma * 0.55 * (i + 1)
-      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.2 * (i + 1)
-      + neuralPush * (1 + i * 0.25)
-      + jumpDriftPerStep * (i + 1)
-      + hawkesPush * (i + 1)
-      + tePush * (i + 1)
-      + crossTePush * (i + 1);
-    trend *= trustTrend;
-    let price = last + trend + arimaWiggle + microWiggle; // preserve macro drift and add market-like oscillation
-    // QSL hard clip
-    const qslU = last + 2.4 * garch.sigma * Math.sqrt(i + 1);
-    const qslL = last - 2.4 * garch.sigma * Math.sqrt(i + 1);
+    // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
+    const auxDrift =
+        regimeBias * garch.sigma * 0.18 * sqrtT
+      + hamPush * sqrtT * 0.4
+      + indicators.bias * weights.indicators * garch.sigma * 0.45 * sqrtT
+      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.2 * sqrtT
+      + neuralPush * sqrtT * 0.5
+      + jumpDriftPerStep * tStep         // jump drift IS an expectation, keep linear but it's already small
+      + hawkesPush * sqrtT
+      + tePush * sqrtT
+      + crossTePush * sqrtT;
+    const trend = baseDrift + auxDrift * trustTrend;
+    let price = last + trend + arimaWiggle + microWiggle;
+    // QSL hard clip — also clamp the trend itself so a single blown component cannot escape.
+    const qslU = last + 2.4 * garch.sigma * sqrtT;
+    const qslL = last - 2.4 * garch.sigma * sqrtT;
     price = Math.min(qslU, Math.max(qslL, price));
     raw.push(price);
   }

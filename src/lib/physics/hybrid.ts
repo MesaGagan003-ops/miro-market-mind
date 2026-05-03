@@ -212,36 +212,45 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     ? Math.sign(options.leaderPrices[options.leaderPrices.length - 1] - options.leaderPrices[Math.max(0, options.leaderPrices.length - 6)])
       * te.crossTE * profile.transferEntropyWeight * garch.sigma * 0.6
     : 0;
-  const neuralSignal = Math.max(-1, Math.min(1, neural.forecast[0] ?? 0));
-  const neuralPush = neuralSignal * profile.neuralWeight * garch.sigma * last * 0.75;
-  const recentWindow = returns.slice(-Math.max(8, Math.min(24, returns.length)));
-  const recentVol = recentWindow.length > 1
-    ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)
-    : garch.sigmaReturn;
-  const wiggleScale = last * Math.max(0.0005, Math.min(0.018, recentVol * (0.9 + 0.2 * hurstTrust)));
-  const wigglePhase = ((prices.length * 9301 + Math.round(last * 1000)) % 360) * (Math.PI / 180);
+  // Neural forecast is a LOG-RETURN. Convert to price units via lastPrice
+  // (NOT garch.sigma * last — sigma is already in price units, double-scaling
+  // was sending the predicted line miles away from spot).
+  const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
+  const neuralPush = neuralSignal * last * profile.neuralWeight;
+  // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
+  // growth was pushing the predicted line wildly off the actual price by the
+  // end of the horizon. sqrt-growth matches the natural diffusion scale of
+  // returns and keeps the forecast anchored near spot.
   for (let i = 0; i < steps; i++) {
-    const baseDrift = arima.driftPerStep * (i + 1);
-    const arimaWiggle = (arimaPath[i] - last - baseDrift) * 0.85; // preserve the ARIMA shock, but keep room for visible micro-swings
-    const cycleA = Math.sin((i + 1) * 1.35 + wigglePhase) * wiggleScale * (1 + i * 0.06);
-    const cycleB = Math.cos((i + 1) * 2.1 + wigglePhase * 0.7) * wiggleScale * 0.45;
-    const microWiggle = cycleA + cycleB;
-    let trend = baseDrift
-      + regimeBias * garch.sigma * 0.18 * (i + 1)
-      + hamPush * (i + 1) * 0.4
-      + indicators.bias * weights.indicators * garch.sigma * 0.55 * (i + 1)
-      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.2 * (i + 1)
-      + neuralPush * (1 + i * 0.25)
-      + jumpDriftPerStep * (i + 1)
-      + hawkesPush * (i + 1)
-      + tePush * (i + 1)
-      + crossTePush * (i + 1);
-    trend *= trustTrend;
-    let price = last + trend + arimaWiggle + microWiggle; // preserve macro drift and add market-like oscillation
-    // QSL hard clip
-    const qslU = last + 2.4 * garch.sigma * Math.sqrt(i + 1);
-    const qslL = last - 2.4 * garch.sigma * Math.sqrt(i + 1);
-    price = Math.min(qslU, Math.max(qslL, price));
+    const tStep = i + 1;
+    const sqrtT = Math.sqrt(tStep);
+    const baseDrift = arima.driftPerStep * tStep; // ARIMA drift IS linear in time (it's an expectation)
+    // Wiggles come ONLY from the trained ARIMA(2,1,1) stochastic recursion.
+    // No synthetic sin/cos overlay — that produced the wig-wag pattern.
+    const arimaWiggle = arimaPath[i] - last - baseDrift;
+    // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
+    const auxDriftRaw =
+        regimeBias * garch.sigma * 0.10 * sqrtT
+      + hamPush * sqrtT * 0.25
+      + indicators.bias * weights.indicators * garch.sigma * 0.28 * sqrtT
+      + llmBias * llmConfidence * weights.llm * garch.sigma * 0.15 * sqrtT
+      + neuralPush * sqrtT * 0.35
+      + jumpDriftPerStep * sqrtT * 0.6
+      + hawkesPush * sqrtT * 0.6
+      + tePush * sqrtT * 0.7
+      + crossTePush * sqrtT * 0.7;
+    // Soft-cap aux drift to ±1.2·σ·√t BEFORE clipping the price. This prevents
+    // bullish/bearish auxiliary stacks from overwhelming the band and pinning
+    // the forecast to a smooth QSL boundary curve (kills the wiggle).
+    const auxCap = 1.2 * garch.sigma * sqrtT;
+    const auxDrift = Math.max(-auxCap, Math.min(auxCap, auxDriftRaw));
+    const trend = baseDrift + auxDrift * trustTrend;
+    // Clip the TREND to the QSL band, then add the wiggle on top so wiggles
+    // are always visible regardless of how strong the directional consensus is.
+    const qslU = 2.4 * garch.sigma * sqrtT;
+    const qslL = -2.4 * garch.sigma * sqrtT;
+    const trendClipped = Math.min(qslU * 0.85, Math.max(qslL * 0.85, trend));
+    const price = last + trendClipped + arimaWiggle;
     raw.push(price);
   }
 

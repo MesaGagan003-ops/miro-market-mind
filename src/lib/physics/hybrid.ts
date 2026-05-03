@@ -217,12 +217,6 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   // was sending the predicted line miles away from spot).
   const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
   const neuralPush = neuralSignal * last * profile.neuralWeight;
-  const recentWindow = returns.slice(-Math.max(8, Math.min(24, returns.length)));
-  const recentVol = recentWindow.length > 1
-    ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)
-    : garch.sigmaReturn;
-  const wiggleScale = last * Math.max(0.0005, Math.min(0.018, recentVol * (0.9 + 0.2 * hurstTrust)));
-  const wigglePhase = ((prices.length * 9301 + Math.round(last * 1000)) % 360) * (Math.PI / 180);
   // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
   // growth was pushing the predicted line wildly off the actual price by the
   // end of the horizon. sqrt-growth matches the natural diffusion scale of
@@ -231,10 +225,9 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     const tStep = i + 1;
     const sqrtT = Math.sqrt(tStep);
     const baseDrift = arima.driftPerStep * tStep; // ARIMA drift IS linear in time (it's an expectation)
-    const arimaWiggle = (arimaPath[i] - last - baseDrift) * 0.6;
-    const cycleA = Math.sin(tStep * 1.35 + wigglePhase) * wiggleScale;
-    const cycleB = Math.cos(tStep * 2.1 + wigglePhase * 0.7) * wiggleScale * 0.45;
-    const microWiggle = cycleA + cycleB;
+    // Wiggles come ONLY from the trained ARIMA(2,1,1) stochastic recursion.
+    // No synthetic sin/cos overlay — that produced the wig-wag pattern.
+    const arimaWiggle = arimaPath[i] - last - baseDrift;
     // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
     const auxDrift =
         regimeBias * garch.sigma * 0.18 * sqrtT
@@ -247,7 +240,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
       + tePush * sqrtT
       + crossTePush * sqrtT;
     const trend = baseDrift + auxDrift * trustTrend;
-    let price = last + trend + arimaWiggle + microWiggle;
+    let price = last + trend + arimaWiggle;
     // QSL hard clip — also clamp the trend itself so a single blown component cannot escape.
     const qslU = last + 2.4 * garch.sigma * sqrtT;
     const qslL = last - 2.4 * garch.sigma * sqrtT;

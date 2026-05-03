@@ -12,33 +12,48 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
   const metrics = useMemo(() => {
     if (!prediction || recentPrices.length < 20) return null;
 
-    const indicators = prediction.indicators;
+    const indicators = prediction.indicators || {};
+
+    // Safety: provide defaults for all indicator properties
+    const rsi = indicators.rsi ?? 50;
+    const macd = indicators.macd ?? 0;
+    const macdSignal = indicators.macdSignal ?? 0;
+    const bbUpper = indicators.bbUpper ?? currentPrice * 1.02;
+    const bbLower = indicators.bbLower ?? currentPrice * 0.98;
+    const stochasticK = indicators.stochasticK ?? 50;
+    const stochasticD = indicators.stochasticD ?? 50;
+    const atr = indicators.atr ?? currentPrice * 0.01;
+    const sma50 = indicators.sma50 ?? currentPrice;
+    const sma200 = indicators.sma200 ?? currentPrice;
+    const adx = indicators.adx ?? 25;
+    const cci = indicators.cci ?? 0;
 
     // RSI interpretation
-    const rsiLevel = indicators.rsi <= 30 ? "OVERSOLD" : indicators.rsi >= 70 ? "OVERBOUGHT" : "NEUTRAL";
-    const rsiColor = indicators.rsi <= 30 ? "text-bull" : indicators.rsi >= 70 ? "text-bear" : "text-foreground";
+    const rsiLevel = rsi <= 30 ? "OVERSOLD" : rsi >= 70 ? "OVERBOUGHT" : "NEUTRAL";
+    const rsiColor = rsi <= 30 ? "text-bull" : rsi >= 70 ? "text-bear" : "text-foreground";
 
     // MACD interpretation
-    const macdSignal = indicators.macd > indicators.macdSignal ? "BULLISH" : "BEARISH";
-    const macdColor = indicators.macd > indicators.macdSignal ? "text-bull" : "text-bear";
+    const macdSignalValue = macdSignal || 0;
+    const macdSignalText = macd > macdSignalValue ? "BULLISH" : "BEARISH";
+    const macdColor = macd > macdSignalValue ? "text-bull" : "text-bear";
 
     // Bollinger Bands interpretation
-    const bbPosition = (currentPrice - indicators.bbLower) / (indicators.bbUpper - indicators.bbLower);
+    const bbPosition = (currentPrice - bbLower) / (bbUpper - bbLower);
     const bbLevel = bbPosition > 0.8 ? "NEAR TOP" : bbPosition < 0.2 ? "NEAR BOTTOM" : "MID-BAND";
 
     // Stochastic %K interpretation
     const stochasticLevel =
-      indicators.stochasticK <= 20 ? "OVERSOLD" : indicators.stochasticK >= 80 ? "OVERBOUGHT" : "NEUTRAL";
+      stochasticK <= 20 ? "OVERSOLD" : stochasticK >= 80 ? "OVERBOUGHT" : "NEUTRAL";
     const stochasticColor =
-      indicators.stochasticK <= 20 ? "text-bull" : indicators.stochasticK >= 80 ? "text-bear" : "text-foreground";
+      stochasticK <= 20 ? "text-bull" : stochasticK >= 80 ? "text-bear" : "text-foreground";
 
     // ATR normalized (volatility indicator)
-    const atrPercent = (indicators.atr / currentPrice) * 100;
+    const atrPercent = (atr / currentPrice) * 100;
     const atrLevel = atrPercent > 2 ? "HIGH VOLATILITY" : atrPercent < 0.5 ? "LOW VOLATILITY" : "NORMAL";
 
     // Moving averages confluence
-    const sma50Above = currentPrice > indicators.sma50 ? "ABOVE" : "BELOW";
-    const sma200Above = currentPrice > indicators.sma200 ? "ABOVE" : "BELOW";
+    const sma50Above = currentPrice > sma50 ? "ABOVE" : "BELOW";
+    const sma200Above = currentPrice > sma200 ? "ABOVE" : "BELOW";
     const ma_confluence =
       sma50Above === "ABOVE" && sma200Above === "ABOVE"
         ? "STRONG_UPTREND"
@@ -47,31 +62,31 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
           : "MIXED";
 
     // ADX trend strength
-    const adxStrength = indicators.adx > 25 ? "STRONG TREND" : indicators.adx > 20 ? "MODERATE TREND" : "WEAK TREND";
-    const adxColor = indicators.adx > 25 ? "text-bull" : indicators.adx > 20 ? "text-foreground" : "text-muted-foreground";
+    const adxStrength = adx > 25 ? "STRONG TREND" : adx > 20 ? "MODERATE TREND" : "WEAK TREND";
+    const adxColor = adx > 25 ? "text-bull" : adx > 20 ? "text-foreground" : "text-muted-foreground";
 
     // CCI interpretation
-    const cciLevel = indicators.cci > 100 ? "EXTREME_UP" : indicators.cci < -100 ? "EXTREME_DOWN" : "NORMAL";
+    const cciLevel = cci > 100 ? "EXTREME_UP" : cci < -100 ? "EXTREME_DOWN" : "NORMAL";
 
     return {
-      rsi: { value: indicators.rsi.toFixed(1), level: rsiLevel, color: rsiColor },
+      rsi: { value: rsi.toFixed(1), level: rsiLevel, color: rsiColor },
       macd: {
-        value: indicators.macd.toFixed(4),
-        signal: macdSignal,
+        value: macd.toFixed(4),
+        signal: macdSignalText,
         color: macdColor,
-        histogram: (indicators.macd - indicators.macdSignal).toFixed(4),
+        histogram: (macd - macdSignalValue).toFixed(4),
       },
-      bb: { upper: indicators.bbUpper.toFixed(4), lower: indicators.bbLower.toFixed(4), level: bbLevel },
+      bb: { upper: bbUpper.toFixed(4), lower: bbLower.toFixed(4), level: bbLevel },
       stochastic: {
-        k: indicators.stochasticK.toFixed(1),
-        d: indicators.stochasticD.toFixed(1),
+        k: stochasticK.toFixed(1),
+        d: stochasticD.toFixed(1),
         level: stochasticLevel,
         color: stochasticColor,
       },
       atr: { value: atrPercent.toFixed(2), level: atrLevel },
       sma: { sma50Above, sma200Above, confluence: ma_confluence },
-      adx: { value: indicators.adx.toFixed(1), level: adxStrength, color: adxColor },
-      cci: { value: indicators.cci.toFixed(1), level: cciLevel },
+      adx: { value: adx.toFixed(1), level: adxStrength, color: adxColor },
+      cci: { value: cci.toFixed(1), level: cciLevel },
     };
   }, [prediction, currentPrice, recentPrices]);
 

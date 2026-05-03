@@ -217,10 +217,6 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   // was sending the predicted line miles away from spot).
   const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
   const neuralPush = neuralSignal * last * profile.neuralWeight;
-  const recentWindow = returns.slice(-Math.max(8, Math.min(24, returns.length)));
-  const recentVol = recentWindow.length > 1
-    ? Math.sqrt(recentWindow.reduce((acc, value) => acc + value * value, 0) / recentWindow.length)
-    : garch.sigmaReturn;
   // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
   // growth was pushing the predicted line wildly off the actual price by the
   // end of the horizon. sqrt-growth matches the natural diffusion scale of

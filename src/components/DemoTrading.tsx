@@ -89,7 +89,8 @@ const MARKET_RISK: Record<string, { slMult: number; tpMult: number; minBps: numb
 };
 
 export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Props) {
-  const [acct, setAcct] = useState<Account>(() => loadAccount());
+  const [mounted, setMounted] = useState(false);
+  const [acct, setAcct] = useState<Account>(INITIAL);
   const [direction, setDirection] = useState<Direction>("long");
   const [size, setSize] = useState<number>(100);
   const [lev, setLev] = useState<number>(2);
@@ -97,6 +98,11 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
   const [customSL, setCustomSL] = useState<number | null>(null);
   const [customTP, setCustomTP] = useState<number | null>(null);
   const [tab, setTab] = useState<"pos" | "log" | "stats">("pos");
+
+  useEffect(() => {
+    setMounted(true);
+    setAcct(loadAccount());
+  }, []);
 
   // Reset entry & custom SL/TP when the selected coin/market changes
   useEffect(() => {
@@ -109,7 +115,10 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     if (currentPrice > 0) setEntry((e) => (e === 0 ? currentPrice : e));
   }, [currentPrice]);
 
-  useEffect(() => saveAccount(acct), [acct]);
+  useEffect(() => {
+    if (!mounted) return;
+    saveAccount(acct);
+  }, [acct, mounted]);
 
   // Auto-fill direction from current model bias
   useEffect(() => {

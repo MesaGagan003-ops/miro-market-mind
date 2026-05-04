@@ -6,11 +6,9 @@ import { PredictionChart } from "@/components/PredictionChart";
 import { ModelPanels } from "@/components/ModelPanels";
 import { AccuracyTracker } from "@/components/AccuracyTracker";
 import { DemoTrading } from "@/components/DemoTrading";
-import { NewsPanel } from "@/components/NewsPanel";
 import { DataSourceInfo } from "@/components/DataSourceInfo";
 import { ProviderHealthPanel, type ProviderHealthItem } from "@/components/ProviderHealthPanel";
 import { TrainerPanel } from "@/components/TrainerPanel";
-import { ComparisonPanel } from "@/components/ComparisonPanel";
 import { FEATURED_ASSETS, type MarketAsset } from "@/lib/markets";
 import { TIMEFRAMES, type Timeframe } from "@/lib/timeframes";
 import {
@@ -90,9 +88,12 @@ function PredictionEngine() {
   }, []);
 
   // Load history + subscribe live.
-  // Long-session hardening: throttle tick → state writes to at most ~1/s, and
-  // cap the in-memory tick buffer so a 5-hour session does not grow unbounded
-  // re-render work or memory pressure.
+  // Long-session hardening: throttle tick → state writes to at most ~1/s and
+  // COALESCE live updates into the current minute bucket. Previously we kept
+  // only the last ~800 raw ticks; after a while that discarded the original
+  // 1-minute history, leaving the model and chart with just a few minutes of
+  // second-level prices. That is why the actual and forecast lines started to
+  // look artificially linear during long sessions.
   useEffect(() => {
     let cancelled = false;
     setTicks([]);
@@ -114,6 +115,7 @@ function PredictionEngine() {
     let lastFlush = 0;
     let pending: Tick | null = null;
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const historyCap = 720;
     const flush = () => {
       flushTimer = null;
       if (cancelled || !pending) return;
@@ -122,12 +124,20 @@ function PredictionEngine() {
       lastFlush = Date.now();
       setCurrentPrice(t.price);
       setTicks((prev) => {
-        // Hard cap at 800; also dedupe identical consecutive timestamps.
-        const last = prev[prev.length - 1];
-        if (last && last.ts === t.ts && last.price === t.price) return prev;
-        const next = prev.length >= 800 ? prev.slice(-799) : prev.slice();
-        next.push(t);
-        return next;
+         const last = prev[prev.length - 1];
+         if (last) {
+           const lastBucket = Math.floor(last.ts / 60000);
+           const nextBucket = Math.floor(t.ts / 60000);
+           if (lastBucket === nextBucket) {
+             if (last.price === t.price && last.ts === t.ts) return prev;
+             const next = prev.slice();
+             next[next.length - 1] = { ...last, ts: t.ts, price: t.price };
+             return next;
+           }
+         }
+         const next = prev.length >= historyCap ? prev.slice(-(historyCap - 1)) : prev.slice();
+         next.push(t);
+         return next;
       });
     };
 
@@ -270,6 +280,10 @@ function PredictionEngine() {
     return set.size;
   }, [ticks]);
 
+  const latestModelPrice = modelSeries[modelSeries.length - 1] ?? 0;
+  const latestModelDelta =
+    modelSeries.length >= 2 ? latestModelPrice - modelSeries[modelSeries.length - 2] : 0;
+
   const prediction = useMemo(() => {
     if (modelSeries.length < 12) return null;
     const steps = Math.min(timeframe.minutes, 200);
@@ -290,7 +304,7 @@ function PredictionEngine() {
     });
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minuteBuckets, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);
+  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
   // hydration mismatch ("Model accuracy too low: X% vs 0.0%") and avoid
@@ -405,9 +419,16 @@ function PredictionEngine() {
           <ProviderHealthPanel items={healthItems} />
         </div>
 
-        {/* Panel 1: Forecast + Accuracy Tracker (side by side) with NEWS */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4">
-          <div className="panel p-4 scan-line">
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="font-display font-semibold text-foreground">Live forecast workspace</h2>
+              <p className="text-[11px] text-muted-foreground">Forecast, execution bias, and market context in one place.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_360px] gap-4 items-start">
+            <div className="panel p-4 scan-line min-w-0">
             <div className="flex items-baseline justify-between mb-3">
               <div>
                 <h2 className="font-display font-semibold text-foreground">
@@ -442,133 +463,142 @@ function PredictionEngine() {
                 </div>
               )}
             </div>
-            {prediction && currentPrice > 0 ? (
-              <PredictionChart
-                history={ticks.slice(-200).map((t) => ({ ts: t.ts, price: t.price }))}
-                prediction={prediction}
-                currentPrice={currentPrice}
-                minutesPerStep={minutesPerStep}
-              />
-            ) : (
-              <div className="h-[420px] flex items-center justify-center text-muted-foreground text-sm">
-                <div className="text-center">
-                  <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                  <div>Streaming ticks & fitting models…</div>
-                </div>
-              </div>
-            )}
-            <ChartLegend />
-          </div>
-
-          <div className="space-y-3">
-            {/* Directional Accuracy Panel */}
-            {prediction ? (
-              <AccuracyTracker
-                stats={stats}
-                currentDirection={prediction.direction}
-                confidence={prediction.hybridConfidence}
-              />
-            ) : (
-              <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
-            )}
-
-            {/* News + Sentiment Panel (inside right sidebar) */}
-            <div className="panel p-3 bg-card/50">
-              <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                News & Sentiment
-              </h3>
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
-                {llmSignal.rationale ? (
-                  <div>
-                    <div className="text-foreground font-semibold mb-1">{llmSignal.rationale}</div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-border rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${llmSignal.confidence * 100}%` }}
-                        />
-                      </div>
-                      <span className="font-semibold">{(llmSignal.confidence * 100).toFixed(0)}%</span>
-                    </div>
+              {prediction && currentPrice > 0 ? (
+                <PredictionChart
+                  history={ticks.slice(-240).map((t) => ({ ts: t.ts, price: t.price }))}
+                  prediction={prediction}
+                  currentPrice={currentPrice}
+                  minutesPerStep={minutesPerStep}
+                />
+              ) : (
+                <div className="h-[420px] flex items-center justify-center text-muted-foreground text-sm">
+                  <div className="text-center">
+                    <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                    <div>Streaming ticks & fitting models…</div>
                   </div>
-                ) : (
-                  "Loading sentiment analysis…"
-                )}
+                </div>
+              )}
+              <ChartLegend />
+            </div>
+
+            <div className="space-y-4 min-w-0">
+              {prediction && currentPrice > 0 ? (
+                <div className="panel p-4">
+                  <h3 className="font-display font-semibold text-foreground mb-4">
+                    <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
+                  </h3>
+                  <StrategicPlanPanel
+                    prediction={prediction}
+                    currentPrice={currentPrice}
+                    recentPrices={modelSeries}
+                    dataQualityScore={dataQuality.score}
+                    llmSignal={llmSignal}
+                  />
+                </div>
+              ) : null}
+
+              {prediction ? (
+                <AccuracyTracker
+                  stats={stats}
+                  currentDirection={prediction.direction}
+                  confidence={prediction.hybridConfidence}
+                />
+              ) : (
+                <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
+              )}
+
+              <div className="panel p-3 bg-card/50">
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  News & Sentiment
+                </h3>
+                <div className="text-[10px] text-muted-foreground leading-relaxed">
+                  {llmSignal.rationale ? (
+                    <div>
+                      <div className="text-foreground font-semibold mb-1">{llmSignal.rationale}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-border rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{ width: `${llmSignal.confidence * 100}%` }}
+                          />
+                        </div>
+                        <span className="font-semibold">{(llmSignal.confidence * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  ) : (
+                    "Loading sentiment analysis…"
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Panel 2: Technical Indicator Overlay + Metrics (side by side) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
-          <div className="panel p-4">
-            <h2 className="font-display font-semibold text-foreground mb-3">
-              Technical Indicator Overlay · Price Action Analysis
-            </h2>
-            <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
+        <section className="space-y-3">
+          <div>
+            <h2 className="font-display font-semibold text-foreground">Technical structure</h2>
+            <p className="text-[11px] text-muted-foreground">Overlay indicators and concise metrics aligned with the hybrid forecast.</p>
           </div>
 
-          {prediction && (
-            <TechnicalIndicatorMetrics
-              prediction={prediction}
-              currentPrice={currentPrice}
-              recentPrices={modelSeries}
-            />
-          )}
-        </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+            <div className="min-w-0">
+              <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
+            </div>
 
-        {/* Panel 3: Demo Trading */}
-        <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
-
-        {/* Panel 4: Strategic Plan (Game Theory Analysis) */}
-        {prediction && currentPrice > 0 ? (
-          <div className="panel p-4">
-            <h2 className="font-display font-semibold text-foreground mb-4">
-              <span className="text-primary">Strategic Plan</span> · Game-Theoretic & Physics-Based Analysis
-            </h2>
-            <StrategicPlanPanel
-              prediction={prediction}
-              currentPrice={currentPrice}
-              recentPrices={modelSeries}
-              dataQualityScore={dataQuality.score}
-              llmSignal={llmSignal}
-            />
+            {prediction ? (
+              <TechnicalIndicatorMetrics
+                prediction={prediction}
+                currentPrice={currentPrice}
+                recentPrices={modelSeries}
+              />
+            ) : (
+              <div className="panel p-4 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
+            )}
           </div>
-        ) : null}
+        </section>
 
-        {/* Panel 5-12: Individual Physics Models (from ModelPanels) */}
+        <section className="space-y-3">
+          <div>
+            <h2 className="font-display font-semibold text-foreground">Validation & training</h2>
+            <p className="text-[11px] text-muted-foreground">Adaptive learning, calibration, and walk-forward validation for the selected market.</p>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div className="space-y-4 min-w-0">
+              <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
+              <CalibrationPanel coin={coin} timeframe={timeframe} />
+            </div>
+            <div className="space-y-4 min-w-0">
+              <WalkForwardPanel coin={coin} />
+              <PerformanceTable />
+            </div>
+          </div>
+        </section>
+
         {prediction && (
-          <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display font-semibold text-foreground">Model diagnostics</h2>
+              <p className="text-[11px] text-muted-foreground">Detailed physics and statistical internals behind the active forecast.</p>
+            </div>
+            <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
+          </section>
         )}
 
-        {/* Panel 13: Adaptive Trainer */}
-        <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="font-display font-semibold text-foreground">Paper trading sandbox</h2>
+              <p className="text-[11px] text-muted-foreground">Optional execution simulator placed below the core analysis workflow.</p>
+            </div>
+          </div>
+          <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
+        </section>
 
-        {/* Panel 14: Walk-Forward Backtest (cost-adjusted) */}
-        <WalkForwardPanel coin={coin} />
-
-        {/* Panel 15: Calibration · Reliability Diagram */}
-        <CalibrationPanel coin={coin} timeframe={timeframe} />
-
-        {/* Panel 16: Cost-Adjusted Performance · all assets */}
-        <PerformanceTable />
-
-        {/* How the model cooperates (educational explanation) */}
         <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">How the models cooperate:</strong> ARIMA(2,1,1) is
-          fit by SSE-minimising (φ₁, φ₂, θ) on differenced prices and produces a recursive,
-          shock-driven forecast — the wiggles you see come from sampled εₜ ~ N(0, σ_resid).
-          The <span style={{ color: "var(--hmm)" }}>HMM</span> Forward+Viterbi pass adds a regime
-          drift bias proportional to (P(bull) − P(bear))·σ. <span style={{ color: "var(--entropy)" }}>Shannon
-          entropy</span> dampens the deviation from spot — high H means noise dominates so the
-          path is pulled back. <span style={{ color: "var(--garch)" }}>GARCH(1,1)</span> sets the
-          σ-band width per step. The <span style={{ color: "var(--bull)" }}>neural network</span>
-          trains on the same historical price path to refine the next-return estimate, and the
-          optional <span style={{ color: "var(--qsl)" }}>LLM bias</span> nudges drift from news-aware
-          context when available. Finally the <span style={{ color: "var(--qsl)" }}>Quantum Speed
-          Limit</span> hard-clips the path to ±2.4σ·√N (Mandelstam–Tamm) and the
-          <span style={{ color: "var(--ssl)" }}> Stochastic Speed Limit</span> draws the Itô 95%
-          envelope (μT ± 1.96σ√T). Directional accuracy is tracked locally.
+          <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the stochastic forecast path,
+          HMM adds regime bias, entropy and Hurst regulate trust, GARCH defines the volatility cone,
+          the neural layer refines next-return bias, and the speed-limit bounds prevent physically implausible moves.
         </div>
 
         <DisclaimerFooter />

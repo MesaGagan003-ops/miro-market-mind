@@ -279,11 +279,41 @@ export function StrategicPlanPanel({
               >
                 {strategicSignal.recommendation}
               </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                Hybrid model + technical indicators {strategicSignal.agreement ? "✓ agree" : "⚠ diverge"}
+              </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Signal Strength</div>
-              <div className="text-2xl font-display font-bold text-foreground">
-                {(strategicSignal.signalStrength * 100).toFixed(0)}%
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Market Outlook</div>
+              <div
+                className="text-lg font-display font-bold"
+                style={{
+                  color:
+                    strategicSignal.marketRegime === "BULLISH"
+                      ? "var(--bull)"
+                      : strategicSignal.marketRegime === "BEARISH"
+                        ? "var(--bear)"
+                        : "var(--foreground)",
+                }}
+              >
+                {strategicSignal.marketRegime}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                Strength {(strategicSignal.signalStrength * 100).toFixed(0)}%
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="bg-card p-1.5 rounded border border-border/50">
+              <div className="uppercase text-muted-foreground text-[8px]">Hybrid Model Score</div>
+              <div className={`font-bold ${strategicSignal.modelScore > 0 ? "text-bull" : strategicSignal.modelScore < 0 ? "text-bear" : "text-foreground"}`}>
+                {strategicSignal.modelScore > 0 ? "+" : ""}{(strategicSignal.modelScore * 100).toFixed(0)}
+              </div>
+            </div>
+            <div className="bg-card p-1.5 rounded border border-border/50">
+              <div className="uppercase text-muted-foreground text-[8px]">Technicals Score</div>
+              <div className={`font-bold ${strategicSignal.techScore > 0 ? "text-bull" : strategicSignal.techScore < 0 ? "text-bear" : "text-foreground"}`}>
+                {strategicSignal.techScore > 0 ? "+" : ""}{(strategicSignal.techScore * 100).toFixed(0)}
               </div>
             </div>
           </div>

@@ -12,7 +12,7 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
   const metrics = useMemo(() => {
     if (!prediction || recentPrices.length < 20) return null;
 
-    const indicators = prediction.indicators || {};
+    const indicators: any = prediction.indicators || {};
 
     // Safety: provide defaults for all indicator properties
     const rsi = indicators.rsi ?? 50;

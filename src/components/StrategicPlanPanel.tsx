@@ -170,33 +170,76 @@ export function StrategicPlanPanel({
     return normalized;
   }, [prediction.weights, agentAnalysis, equilibriumAnalysis, volatilityOpportunity, dataQualityScore, llmSignal.confidence]);
 
-  // 6. Overall Strategic Signal
+  // 6. Overall Strategic Signal — Hybrid model + technical indicator fusion
   const strategicSignal = useMemo(() => {
     if (!agentAnalysis || !equilibriumAnalysis || !positionSizing) return null;
 
+    // --- Hybrid model directional score, signed in [-1, 1] ---
+    const expectedReturn = (prediction.finalPrice - currentPrice) / Math.max(1e-9, currentPrice);
+    const sigmaPct = Math.max(1e-9, prediction.garch.sigma / Math.max(1e-9, currentPrice));
+    const modelDirScore = Math.max(-1, Math.min(1, expectedReturn / (sigmaPct * 2)));
+    const regimeBias = prediction.hmm.stateProbs[2] - prediction.hmm.stateProbs[0]; // bull - bear
+    const modelScore = 0.6 * modelDirScore + 0.4 * regimeBias;
+
+    // --- Technical indicator score, signed in [-1, 1] ---
+    // indicators.bias already aggregates VWAP-z, EMA slope, MACD
+    const techBias = Math.max(-1, Math.min(1, prediction.indicators.bias));
+    const momentumPush =
+      agentAnalysis.momentum.signal === "long" ? 0.5 :
+      agentAnalysis.momentum.signal === "short" ? -0.5 : 0;
+    const meanRevPush =
+      agentAnalysis.meanReversion.signal === "long" ? 0.25 :
+      agentAnalysis.meanReversion.signal === "short" ? -0.25 : 0;
+    const techScore = Math.max(-1, Math.min(1, 0.6 * techBias + 0.3 * momentumPush + 0.1 * meanRevPush));
+
+    // --- Fused signed score (hybrid 55%, technicals 45%) ---
+    const fusedScore = 0.55 * modelScore + 0.45 * techScore;
+    const agreement = Math.sign(modelScore) === Math.sign(techScore) && Math.sign(modelScore) !== 0;
+
+    // --- Market regime: Bullish / Bearish / Sideways ---
+    let marketRegime: "BULLISH" | "BEARISH" | "SIDEWAYS" = "SIDEWAYS";
+    if (fusedScore > 0.18) marketRegime = "BULLISH";
+    else if (fusedScore < -0.18) marketRegime = "BEARISH";
+
+    // Confidence-weighted gate for actionable trade
     const components = {
       convergence: agentAnalysis.convergence,
       equilibrium: equilibriumAnalysis.stability,
       confidence: prediction.hybridConfidence,
       dataQuality: dataQualityScore,
     };
-
     const compositeScore = Object.values(components).reduce((a, b) => a + b, 0) / Object.keys(components).length;
 
-    let recommendation = "HOLD";
-    if (compositeScore > 0.65 && prediction.direction === "up") recommendation = "BUY";
-    else if (compositeScore > 0.65 && prediction.direction === "down") recommendation = "SELL";
-    else if (compositeScore < 0.35) recommendation = "AVOID";
+    // --- BUY / SELL / HOLD recommendation ---
+    // Require: clear direction (|fused| > 0.18), reasonable confidence,
+    // and ideally model + technicals agreeing.
+    let recommendation: "BUY" | "SELL" | "HOLD" | "AVOID" = "HOLD";
+    const actionGate = compositeScore > 0.55 && Math.abs(fusedScore) > 0.18;
+    const strongGate = compositeScore > 0.65 && Math.abs(fusedScore) > 0.30 && agreement;
+    if (compositeScore < 0.35) recommendation = "AVOID";
+    else if (strongGate || actionGate) {
+      recommendation = fusedScore > 0 ? "BUY" : "SELL";
+    }
 
-    const signalStrength = Math.abs(compositeScore - 0.5) * 2; // 0 to 1
+    const signalStrength = Math.min(1, Math.abs(fusedScore) * 0.6 + (compositeScore - 0.5) * 0.8);
 
     return {
       recommendation,
+      marketRegime,
+      fusedScore,
+      modelScore,
+      techScore,
+      agreement,
       compositeScore,
-      signalStrength,
+      signalStrength: Math.max(0, signalStrength),
       components,
     };
-  }, [agentAnalysis, equilibriumAnalysis, positionSizing, prediction.direction, prediction.hybridConfidence, dataQualityScore]);
+  }, [
+    agentAnalysis, equilibriumAnalysis, positionSizing,
+    prediction.finalPrice, prediction.garch.sigma, prediction.hmm.stateProbs,
+    prediction.indicators.bias, prediction.hybridConfidence,
+    currentPrice, dataQualityScore,
+  ]);
 
   if (!agentAnalysis || !equilibriumAnalysis || !positionSizing || !volatilityOpportunity || !strategicSignal) {
     return (

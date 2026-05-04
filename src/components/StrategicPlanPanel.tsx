@@ -445,7 +445,7 @@ export function StrategicPlanPanel({
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">GARCH(1,1)</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.garch || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">{((((prediction.weights as any).garch) || 0) * 100).toFixed(1)}%</div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Vol persistence</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">

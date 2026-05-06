@@ -1,22 +1,20 @@
 // Hybrid prediction engine: ARIMA(2,1,1) + GARCH + HMM + Shannon Entropy
-// + Hurst exponent + Hamiltonian energy, constrained by QSL and SSL.
+// + Hurst exponent + Hamiltonian energy, constrained by SSL (master-equation).
 //
 // Path construction (per step i = 1..N):
 //   1. ARIMA(2,1,1) recursive forecast with capped shocks → wiggly path.
 //   2. Add HMM regime drift bias = (P(bull) - P(bear)) · σ
 //   3. Add Hamiltonian velocity bias proportional to recent kinetic energy.
-//   4. Hurst-aware trust factor: trending markets keep deviation, mean-
-//      reverting markets pull harder back to spot.
-//   5. Entropy damping: high H → shrink deviation toward spot.
-//   6. QSL hard clip ±2.4·σ·√i.
-//   7. Light EMA smoothing pass to remove tick-scale jitter.
+//   4. Hurst-aware trust factor.
+//   5. Entropy damping.
+//   6. SSL master-equation envelope used for the band only (no hard clip).
 
 import { fitArima211 } from "./arima";
 import { fitGarch11 } from "./garch";
 import { fitHmm3 } from "./hmm";
 import { shannonEntropy } from "./entropy";
 import { hurstExponent, hamiltonianEnergy, type HurstResult, type HamiltonianResult } from "./features";
-import { quantumSpeedLimit, stochasticSpeedLimit, type SpeedLimit, type StochasticSpeedLimitDetail } from "./speedLimits";
+import { stochasticSpeedLimit, type StochasticSpeedLimitDetail } from "./speedLimits";
 import { extractFeatures, type IndicatorFeatures } from "./indicators";
 import { kalmanFilter, type KalmanResult } from "./kalman";
 import { fitJumpDiffusion, type JumpDiffusionResult } from "./jumpDiffusion";
@@ -34,8 +32,6 @@ export interface ForecastPoint {
   price: number;
   upper: number;
   lower: number;
-  qslUpper: number;
-  qslLower: number;
   sslUpper: number;
   sslLower: number;
 }
@@ -47,7 +43,6 @@ export interface HybridResult {
   entropy: ReturnType<typeof shannonEntropy>;
   hurst: HurstResult;
   hamiltonian: HamiltonianResult;
-  qsl: SpeedLimit;
   ssl: StochasticSpeedLimitDetail;
   indicators: IndicatorFeatures;
   kalman: KalmanResult;

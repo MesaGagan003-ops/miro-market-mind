@@ -7,8 +7,8 @@ interface Props {
   minutes: number;
 }
 
-export function ModelPanels({ result, minutes }: Props) {
-  const { arima, garch, hmm, entropy, hurst, hamiltonian, qsl, ssl,
+export function ModelPanels({ result }: Props) {
+  const { arima, garch, hmm, entropy, hurst, hamiltonian, ssl,
     kalman, jump, hawkes, wavelet, transferEntropy: te, multifractal, fokkerPlanck } = result;
 
   return (
@@ -202,19 +202,7 @@ export function ModelPanels({ result, minutes }: Props) {
         </p>
       </Panel>
 
-      <Panel
-        title="Quantum Speed Limit"
-        accent="var(--qsl)"
-        subtitle="Mandelstam–Tamm hard bound"
-      >
-        <Row label="Upper bound" value={formatPrice(qsl.upper)} />
-        <Row label="Lower bound" value={formatPrice(qsl.lower)} />
-        <Row label="Reachable range" value={`±${formatPrice(qsl.reachableRange / 2)}`} />
-        <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          With σ = {formatPrice(garch.sigma)}, price cannot move more than
-          ~2.4σ·√{minutes} in {minutes} min. Hard-clips the hybrid path.
-        </p>
-      </Panel>
+      {/* Quantum Speed Limit panel removed per request. */}
 
       <Panel
         title="Stochastic Speed Limit"

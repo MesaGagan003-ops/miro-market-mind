@@ -23,8 +23,6 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
     predicted: f.price,
     upper: f.upper,
     lower: f.lower,
-    qslU: f.qslUpper,
-    qslL: f.qslLower,
     sslU: f.sslUpper,
     sslL: f.sslLower,
   }));
@@ -39,7 +37,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
     [d.actual, d.predicted, d.upper, d.lower].filter((v) => typeof v === "number"),
   );
   const envelopeVals = data.flatMap((d: any) =>
-    [d.qslU, d.qslL, d.sslU, d.sslL].filter((v) => typeof v === "number"),
+    [d.sslU, d.sslL].filter((v) => typeof v === "number"),
   );
   const coreMin = Math.min(...coreVals);
   const coreMax = Math.max(...coreVals);
@@ -68,10 +66,6 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
       <ResponsiveContainer width="100%" height={420}>
         <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
           <defs>
-            <linearGradient id="qslFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.18} />
-              <stop offset="100%" stopColor="oklch(0.72 0.22 305)" stopOpacity={0.04} />
-            </linearGradient>
             <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
               <stop offset="100%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.0} />
@@ -108,9 +102,6 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
           />
           <ReferenceLine x={lastTs} stroke="oklch(0.65 0.03 255)" strokeDasharray="2 4" strokeOpacity={0.5} label={{ value: "now", position: "top", fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
           <ReferenceLine y={currentPrice} stroke="oklch(0.72 0.18 230)" strokeDasharray="3 3" strokeOpacity={0.4} />
-          {/* QSL band */}
-          <Area dataKey="qslU" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="url(#qslFill)" connectNulls isAnimationActive={false} />
-          <Area dataKey="qslL" stroke="oklch(0.72 0.22 305)" strokeWidth={0.5} strokeDasharray="3 3" fill="transparent" connectNulls isAnimationActive={false} />
           {/* SSL */}
           <Line dataKey="sslU" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />
           <Line dataKey="sslL" stroke="oklch(0.78 0.18 130)" strokeWidth={1} strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />

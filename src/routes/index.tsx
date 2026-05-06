@@ -436,7 +436,7 @@ function PredictionEngine() {
                   <span className="text-primary">{timeframe.label} forecast</span>
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Hybrid path = ARIMA(2,1,1) recursion + HMM regime drift, entropy-damped & QSL-clipped
+                  Hybrid path = ARIMA(2,1,1) + HMM regime drift + GARCH volatility, SSL-bounded
                 </p>
               </div>
               {prediction && (
@@ -612,7 +612,6 @@ function ChartLegend() {
     { c: "var(--foreground)", l: "Actual" },
     { c: "var(--bear)", l: "Hybrid forecast" },
     { c: "var(--garch)", l: "GARCH 1σ" },
-    { c: "var(--qsl)", l: "QSL bound" },
     { c: "var(--ssl)", l: "SSL 95% bound" },
   ];
   return (

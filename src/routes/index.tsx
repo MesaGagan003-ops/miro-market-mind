@@ -481,12 +481,12 @@ function PredictionEngine() {
               <ChartLegend />
             </div>
 
-            <div className="space-y-4 min-w-0">
-              {prediction && currentPrice > 0 ? (
-                <div className="panel p-4">
-                  <h3 className="font-display font-semibold text-foreground mb-4">
-                    <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
-                  </h3>
+            <div className="space-y-4 min-w-0 flex flex-col">
+              <div className="panel p-4">
+                <h3 className="font-display font-semibold text-foreground mb-4">
+                  <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
+                </h3>
+                {prediction && currentPrice > 0 ? (
                   <StrategicPlanPanel
                     prediction={prediction}
                     currentPrice={currentPrice}
@@ -494,8 +494,10 @@ function PredictionEngine() {
                     dataQualityScore={dataQuality.score}
                     llmSignal={llmSignal}
                   />
-                </div>
-              ) : null}
+                ) : (
+                  <div className="text-sm text-muted-foreground">Strategic recommendation appears once the first forecast is ready.</div>
+                )}
+              </div>
 
               {prediction ? (
                 <AccuracyTracker
@@ -529,6 +531,13 @@ function PredictionEngine() {
                     "Loading sentiment analysis…"
                   )}
                 </div>
+              </div>
+
+              <div className="panel p-3 bg-card/40 text-[10px] text-muted-foreground">
+                <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
+                {deepHistory.length > 0
+                  ? `${deepHistory.length} historical bars merged with live ticks for ${coin.market.toUpperCase()} · ${coin.symbol}`
+                  : "Loading multi-year history…"}
               </div>
             </div>
           </div>
@@ -598,7 +607,7 @@ function PredictionEngine() {
         <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the stochastic forecast path,
           HMM adds regime bias, entropy and Hurst regulate trust, GARCH defines the volatility cone,
-          the neural layer refines next-return bias, and the speed-limit bounds prevent physically implausible moves.
+          the neural layer refines next-return bias, and the SSL master-equation bound caps regime-driven excursions.
         </div>
 
         <DisclaimerFooter />

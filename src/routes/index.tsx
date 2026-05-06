@@ -28,6 +28,7 @@ import { recordPredictionCloud, resolvePendingPredictions, loadWeights } from "@
 import type { AdaptiveWeights } from "@/lib/learning";
 import { assessDataQuality, isReadyForTrading, type DataQualityScore } from "@/lib/dataQuality";
 import { fetchYahooHistory } from "@/lib/yahooProxy";
+import { fetchDeepHistory } from "@/lib/deepHistory";
 import { CalibrationPanel } from "@/components/CalibrationPanel";
 import { WalkForwardPanel } from "@/components/WalkForwardPanel";
 import { PerformanceTable } from "@/components/PerformanceTable";
@@ -66,6 +67,7 @@ function PredictionEngine() {
   const [stats, setStats] = useState<AccuracyStats>(() => computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
   const [providerHealth, setProviderHealth] = useState<Record<string, ProviderHealthItem>>({});
   const [yahooTrain, setYahooTrain] = useState<number[]>([]);
+  const [deepHistory, setDeepHistory] = useState<number[]>([]);
   const [adaptive, setAdaptive] = useState<AdaptiveWeights | null>(null);
   const [llmSignal, setLlmSignal] = useState<{ bias: number; confidence: number; rationale: string }>({ bias: 0, confidence: 0, rationale: "" });
   const [dataQuality, setDataQuality] = useState<DataQualityScore>({ score: 0, isGappy: true, isSparse: true, isFresh: false, detail: "Initializing" });
@@ -184,6 +186,25 @@ function PredictionEngine() {
       clearInterval(id);
     };
   }, [coin.yahooSymbol, onStatus]);
+
+  // Deep multi-year history (daily bars) used to train ARIMA/GARCH/HMM/neural
+  // on long-horizon structure for the selected market/symbol.
+  useEffect(() => {
+    let cancelled = false;
+    setDeepHistory([]);
+    void fetchDeepHistory(coin).then((bars) => {
+      if (cancelled) return;
+      setDeepHistory(bars.map((b) => b.price));
+      onStatus({
+        provider: "deep-history",
+        state: bars.length > 100 ? "live" : "failing",
+        detail: `${bars.length} daily bars`,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coin, onStatus]);
 
   useEffect(() => {
     let cancelled = false;

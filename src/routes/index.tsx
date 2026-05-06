@@ -239,13 +239,20 @@ function PredictionEngine() {
   }, [ticks]);
 
   const modelSeries = useMemo(() => {
-    // Prefer live stream for crypto/forex; use Yahoo augmentation mainly for
-    // exchange assets where free delayed feeds can be sparse.
-    if (coin.market === "crypto" || coin.market === "forex") return resampled;
-    if (yahooTrain.length < 30) return resampled;
-    const merged = [...yahooTrain.slice(-300), ...resampled.slice(-300)];
-    return merged.slice(-500);
-  }, [coin.market, resampled, yahooTrain]);
+    // Anchor every market with up to ~5 years of daily bars (deep training
+    // corpus) plus the recent live/intraday tail. This gives ARIMA/GARCH/HMM
+    // and the neural net a real long-horizon fingerprint of the selected
+    // symbol while keeping the latest live ticks driving the forecast tail.
+    const live =
+      coin.market === "crypto" || coin.market === "forex"
+        ? resampled
+        : yahooTrain.length >= 30
+          ? [...yahooTrain.slice(-300), ...resampled.slice(-300)]
+          : resampled;
+    if (deepHistory.length < 60) return live.slice(-500);
+    const merged = [...deepHistory.slice(-1500), ...live.slice(-300)];
+    return merged.slice(-1800);
+  }, [coin.market, resampled, yahooTrain, deepHistory]);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,22 +1,20 @@
 // Hybrid prediction engine: ARIMA(2,1,1) + GARCH + HMM + Shannon Entropy
-// + Hurst exponent + Hamiltonian energy, constrained by QSL and SSL.
+// + Hurst exponent + Hamiltonian energy, constrained by SSL (master-equation).
 //
 // Path construction (per step i = 1..N):
 //   1. ARIMA(2,1,1) recursive forecast with capped shocks → wiggly path.
 //   2. Add HMM regime drift bias = (P(bull) - P(bear)) · σ
 //   3. Add Hamiltonian velocity bias proportional to recent kinetic energy.
-//   4. Hurst-aware trust factor: trending markets keep deviation, mean-
-//      reverting markets pull harder back to spot.
-//   5. Entropy damping: high H → shrink deviation toward spot.
-//   6. QSL hard clip ±2.4·σ·√i.
-//   7. Light EMA smoothing pass to remove tick-scale jitter.
+//   4. Hurst-aware trust factor.
+//   5. Entropy damping.
+//   6. SSL master-equation envelope used for the band only (no hard clip).
 
 import { fitArima211 } from "./arima";
 import { fitGarch11 } from "./garch";
 import { fitHmm3 } from "./hmm";
 import { shannonEntropy } from "./entropy";
 import { hurstExponent, hamiltonianEnergy, type HurstResult, type HamiltonianResult } from "./features";
-import { quantumSpeedLimit, stochasticSpeedLimit, type SpeedLimit, type StochasticSpeedLimitDetail } from "./speedLimits";
+import { stochasticSpeedLimit, type StochasticSpeedLimitDetail } from "./speedLimits";
 import { extractFeatures, type IndicatorFeatures } from "./indicators";
 import { kalmanFilter, type KalmanResult } from "./kalman";
 import { fitJumpDiffusion, type JumpDiffusionResult } from "./jumpDiffusion";
@@ -34,8 +32,6 @@ export interface ForecastPoint {
   price: number;
   upper: number;
   lower: number;
-  qslUpper: number;
-  qslLower: number;
   sslUpper: number;
   sslLower: number;
 }
@@ -47,7 +43,6 @@ export interface HybridResult {
   entropy: ReturnType<typeof shannonEntropy>;
   hurst: HurstResult;
   hamiltonian: HamiltonianResult;
-  qsl: SpeedLimit;
   ssl: StochasticSpeedLimitDetail;
   indicators: IndicatorFeatures;
   kalman: KalmanResult;
@@ -155,7 +150,6 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   // Hamiltonian velocity bias (small, per-step) — adds momentum push.
   const hamPush = Math.sign(hamiltonian.velocity) * Math.min(Math.abs(hamiltonian.velocity), 0.005) * last;
 
-  const qsl = quantumSpeedLimit(last, garch.sigma, steps);
   // Master-equation SSL: probability flow over HMM regimes, mapped to price.
   const ssl = stochasticSpeedLimit(
     last,
@@ -239,18 +233,11 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
       + hawkesPush * sqrtT * 0.6
       + tePush * sqrtT * 0.7
       + crossTePush * sqrtT * 0.7;
-    // Soft-cap aux drift to ±1.2·σ·√t BEFORE clipping the price. This prevents
-    // bullish/bearish auxiliary stacks from overwhelming the band and pinning
-    // the forecast to a smooth QSL boundary curve (kills the wiggle).
+    // Soft-cap aux drift to ±1.2·σ·√t so directional stacks don't dominate.
     const auxCap = 1.2 * garch.sigma * sqrtT;
     const auxDrift = Math.max(-auxCap, Math.min(auxCap, auxDriftRaw));
     const trend = baseDrift + auxDrift * trustTrend;
-    // Clip the TREND to the QSL band, then add the wiggle on top so wiggles
-    // are always visible regardless of how strong the directional consensus is.
-    const qslU = 2.4 * garch.sigma * sqrtT;
-    const qslL = -2.4 * garch.sigma * sqrtT;
-    const trendClipped = Math.min(qslU * 0.85, Math.max(qslL * 0.85, trend));
-    const price = last + trendClipped + arimaWiggle;
+    const price = last + trend + arimaWiggle;
     raw.push(price);
   }
 
@@ -266,8 +253,6 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
       price,
       upper: price + sigma,
       lower: price - sigma,
-      qslUpper: last + 2.4 * garch.sigma * Math.sqrt(i + 1),
-      qslLower: last - 2.4 * garch.sigma * Math.sqrt(i + 1),
       sslUpper: last + (sslUpEnd - last) * frac,
       sslLower: last + (sslLoEnd - last) * frac,
     };
@@ -340,7 +325,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   const fokkerPlanck = fokkerPlanckEvolve(last, fpDrift, fpSigmaTotal, steps);
 
   return {
-    arima, garch, hmm, entropy, hurst, hamiltonian, indicators, qsl, ssl,
+    arima, garch, hmm, entropy, hurst, hamiltonian, indicators, ssl,
     kalman, jump, hawkes, wavelet, transferEntropy: te, multifractal,
     fokkerPlanck, marketProfile: profile, neural,
     forecast, finalPrice, direction, currentSignal, futureSignal, hybridConfidence: finalConfidence, weights,

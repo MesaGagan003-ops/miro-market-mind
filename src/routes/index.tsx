@@ -28,6 +28,7 @@ import { recordPredictionCloud, resolvePendingPredictions, loadWeights } from "@
 import type { AdaptiveWeights } from "@/lib/learning";
 import { assessDataQuality, isReadyForTrading, type DataQualityScore } from "@/lib/dataQuality";
 import { fetchYahooHistory } from "@/lib/yahooProxy";
+import { fetchDeepHistory } from "@/lib/deepHistory";
 import { CalibrationPanel } from "@/components/CalibrationPanel";
 import { WalkForwardPanel } from "@/components/WalkForwardPanel";
 import { PerformanceTable } from "@/components/PerformanceTable";
@@ -66,6 +67,7 @@ function PredictionEngine() {
   const [stats, setStats] = useState<AccuracyStats>(() => computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
   const [providerHealth, setProviderHealth] = useState<Record<string, ProviderHealthItem>>({});
   const [yahooTrain, setYahooTrain] = useState<number[]>([]);
+  const [deepHistory, setDeepHistory] = useState<number[]>([]);
   const [adaptive, setAdaptive] = useState<AdaptiveWeights | null>(null);
   const [llmSignal, setLlmSignal] = useState<{ bias: number; confidence: number; rationale: string }>({ bias: 0, confidence: 0, rationale: "" });
   const [dataQuality, setDataQuality] = useState<DataQualityScore>({ score: 0, isGappy: true, isSparse: true, isFresh: false, detail: "Initializing" });
@@ -185,6 +187,25 @@ function PredictionEngine() {
     };
   }, [coin.yahooSymbol, onStatus]);
 
+  // Deep multi-year history (daily bars) used to train ARIMA/GARCH/HMM/neural
+  // on long-horizon structure for the selected market/symbol.
+  useEffect(() => {
+    let cancelled = false;
+    setDeepHistory([]);
+    void fetchDeepHistory(coin).then((bars) => {
+      if (cancelled) return;
+      setDeepHistory(bars.map((b) => b.price));
+      onStatus({
+        provider: "deep-history",
+        state: bars.length > 100 ? "live" : "failing",
+        detail: `${bars.length} daily bars`,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coin, onStatus]);
+
   useEffect(() => {
     let cancelled = false;
     setAdaptive(null);
@@ -218,13 +239,20 @@ function PredictionEngine() {
   }, [ticks]);
 
   const modelSeries = useMemo(() => {
-    // Prefer live stream for crypto/forex; use Yahoo augmentation mainly for
-    // exchange assets where free delayed feeds can be sparse.
-    if (coin.market === "crypto" || coin.market === "forex") return resampled;
-    if (yahooTrain.length < 30) return resampled;
-    const merged = [...yahooTrain.slice(-300), ...resampled.slice(-300)];
-    return merged.slice(-500);
-  }, [coin.market, resampled, yahooTrain]);
+    // Anchor every market with up to ~5 years of daily bars (deep training
+    // corpus) plus the recent live/intraday tail. This gives ARIMA/GARCH/HMM
+    // and the neural net a real long-horizon fingerprint of the selected
+    // symbol while keeping the latest live ticks driving the forecast tail.
+    const live =
+      coin.market === "crypto" || coin.market === "forex"
+        ? resampled
+        : yahooTrain.length >= 30
+          ? [...yahooTrain.slice(-300), ...resampled.slice(-300)]
+          : resampled;
+    if (deepHistory.length < 60) return live.slice(-500);
+    const merged = [...deepHistory.slice(-1500), ...live.slice(-300)];
+    return merged.slice(-1800);
+  }, [coin.market, resampled, yahooTrain, deepHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -436,7 +464,7 @@ function PredictionEngine() {
                   <span className="text-primary">{timeframe.label} forecast</span>
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Hybrid path = ARIMA(2,1,1) recursion + HMM regime drift, entropy-damped & QSL-clipped
+                  Hybrid path = ARIMA(2,1,1) + HMM regime drift + GARCH volatility, SSL-bounded
                 </p>
               </div>
               {prediction && (
@@ -481,12 +509,12 @@ function PredictionEngine() {
               <ChartLegend />
             </div>
 
-            <div className="space-y-4 min-w-0">
-              {prediction && currentPrice > 0 ? (
-                <div className="panel p-4">
-                  <h3 className="font-display font-semibold text-foreground mb-4">
-                    <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
-                  </h3>
+            <div className="space-y-4 min-w-0 flex flex-col">
+              <div className="panel p-4">
+                <h3 className="font-display font-semibold text-foreground mb-4">
+                  <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
+                </h3>
+                {prediction && currentPrice > 0 ? (
                   <StrategicPlanPanel
                     prediction={prediction}
                     currentPrice={currentPrice}
@@ -494,8 +522,10 @@ function PredictionEngine() {
                     dataQualityScore={dataQuality.score}
                     llmSignal={llmSignal}
                   />
-                </div>
-              ) : null}
+                ) : (
+                  <div className="text-sm text-muted-foreground">Strategic recommendation appears once the first forecast is ready.</div>
+                )}
+              </div>
 
               {prediction ? (
                 <AccuracyTracker
@@ -529,6 +559,13 @@ function PredictionEngine() {
                     "Loading sentiment analysis…"
                   )}
                 </div>
+              </div>
+
+              <div className="panel p-3 bg-card/40 text-[10px] text-muted-foreground">
+                <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
+                {deepHistory.length > 0
+                  ? `${deepHistory.length} historical bars merged with live ticks for ${coin.market.toUpperCase()} · ${coin.symbol}`
+                  : "Loading multi-year history…"}
               </div>
             </div>
           </div>
@@ -598,7 +635,7 @@ function PredictionEngine() {
         <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the stochastic forecast path,
           HMM adds regime bias, entropy and Hurst regulate trust, GARCH defines the volatility cone,
-          the neural layer refines next-return bias, and the speed-limit bounds prevent physically implausible moves.
+          the neural layer refines next-return bias, and the SSL master-equation bound caps regime-driven excursions.
         </div>
 
         <DisclaimerFooter />
@@ -612,7 +649,6 @@ function ChartLegend() {
     { c: "var(--foreground)", l: "Actual" },
     { c: "var(--bear)", l: "Hybrid forecast" },
     { c: "var(--garch)", l: "GARCH 1σ" },
-    { c: "var(--qsl)", l: "QSL bound" },
     { c: "var(--ssl)", l: "SSL 95% bound" },
   ];
   return (

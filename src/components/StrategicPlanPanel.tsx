@@ -513,14 +513,9 @@ export function StrategicPlanPanel({
 
         <Card className="panel p-4">
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
-            Advanced Physics Models (Speed Limits & Stochastic Bounds)
+            Advanced Physics Models (Stochastic Bounds & Filters)
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-[10px]">
-            <div className="bg-card p-2 rounded border border-border/50">
-              <div className="uppercase text-[8px] text-muted-foreground mb-1">QSL (Quantum)</div>
-              <div className="text-sm font-bold text-foreground">Hard Clip</div>
-              <div className="text-[8px] text-muted-foreground mt-0.5">±2.4σ·√N Mandelstam-Tamm</div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 text-[10px]">
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">SSL (Stochastic)</div>
               <div className="text-sm font-bold text-foreground">95% Band</div>

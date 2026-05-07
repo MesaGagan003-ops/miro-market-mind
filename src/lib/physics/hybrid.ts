@@ -70,6 +70,10 @@ export interface HybridOptions {
   dataQualityScore?: number; // 0..1, where 1 = perfect data
   market?: MarketKind;       // selects per-market physics profile
   leaderPrices?: number[];   // optional leader series (e.g. BTC for alts) for transfer entropy
+  /** Deep multi-year DAILY price series — used only to derive a long-horizon
+   *  drift bias (sign + magnitude). Never concatenated with the per-minute
+   *  series fed to ARIMA/GARCH/HMM. */
+  deepDailyPrices?: number[];
 }
 
 export function hybridPredict(prices: number[], steps: number, options?: HybridOptions): HybridResult {

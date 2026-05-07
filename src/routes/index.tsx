@@ -31,6 +31,7 @@ import { fetchYahooHistory } from "@/lib/yahooProxy";
 import { fetchDeepHistory } from "@/lib/deepHistory";
 import { CalibrationPanel } from "@/components/CalibrationPanel";
 import { WalkForwardPanel } from "@/components/WalkForwardPanel";
+import { DeepHistoryBacktestPanel } from "@/components/DeepHistoryBacktestPanel";
 import { PerformanceTable } from "@/components/PerformanceTable";
 import { DisclaimerModal, DisclaimerBanner, DisclaimerFooter } from "@/components/Disclaimer";
 import { TradingReadinessAlert } from "@/components/TradingReadinessAlert";
@@ -331,10 +332,11 @@ function PredictionEngine() {
       market: coin.market,
       llmBias: llmSignal.bias,
       llmConfidence: llmSignal.confidence,
+      deepDailyPrices: deepHistory,
     });
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);
+  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence, deepHistory.length]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
   // hydration mismatch ("Model accuracy too low: X% vs 0.0%") and avoid
@@ -566,7 +568,7 @@ function PredictionEngine() {
               <div className="panel p-3 bg-card/40 text-[10px] text-muted-foreground">
                 <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
                 {deepHistory.length > 0
-                  ? `${deepHistory.length} historical bars merged with live ticks for ${coin.market.toUpperCase()} · ${coin.symbol}`
+                  ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
                   : "Loading multi-year history…"}
               </div>
             </div>
@@ -609,6 +611,7 @@ function PredictionEngine() {
             </div>
             <div className="space-y-4 min-w-0">
               <WalkForwardPanel coin={coin} />
+              <DeepHistoryBacktestPanel coin={coin} />
               <PerformanceTable />
             </div>
           </div>

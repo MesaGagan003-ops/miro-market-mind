@@ -336,9 +336,6 @@ function PredictionEngine() {
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence, deepHistory.length]);
-    return pred;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
   // hydration mismatch ("Model accuracy too low: X% vs 0.0%") and avoid

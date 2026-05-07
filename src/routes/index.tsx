@@ -238,21 +238,23 @@ function PredictionEngine() {
     return ticks.map((t) => t.price);
   }, [ticks]);
 
+  // CRITICAL: the forecast series MUST be on a single, consistent time-scale
+  // (one step = one minute) — that is the scale the chart plots against and
+  // the scale `timeframe.minutes` represents. Mixing 5 years of DAILY bars
+  // with live MINUTE ticks made ARIMA/GARCH calibrate σ and drift to daily
+  // volatility (~hundreds of × the per-minute σ), which is why the predicted
+  // line was diverging wildly from the actual line. Deep history is still
+  // fetched and surfaced as a "training corpus" stat for transparency, but
+  // it is no longer fed directly into the per-minute forecast model.
   const modelSeries = useMemo(() => {
-    // Anchor every market with up to ~5 years of daily bars (deep training
-    // corpus) plus the recent live/intraday tail. This gives ARIMA/GARCH/HMM
-    // and the neural net a real long-horizon fingerprint of the selected
-    // symbol while keeping the latest live ticks driving the forecast tail.
     const live =
       coin.market === "crypto" || coin.market === "forex"
         ? resampled
         : yahooTrain.length >= 30
           ? [...yahooTrain.slice(-300), ...resampled.slice(-300)]
           : resampled;
-    if (deepHistory.length < 60) return live.slice(-500);
-    const merged = [...deepHistory.slice(-1500), ...live.slice(-300)];
-    return merged.slice(-1800);
-  }, [coin.market, resampled, yahooTrain, deepHistory]);
+    return live.slice(-500);
+  }, [coin.market, resampled, yahooTrain]);
 
   useEffect(() => {
     let cancelled = false;

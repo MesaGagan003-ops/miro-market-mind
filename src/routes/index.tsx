@@ -31,6 +31,7 @@ import { fetchYahooHistory } from "@/lib/yahooProxy";
 import { fetchDeepHistory } from "@/lib/deepHistory";
 import { CalibrationPanel } from "@/components/CalibrationPanel";
 import { WalkForwardPanel } from "@/components/WalkForwardPanel";
+import { DeepHistoryBacktestPanel } from "@/components/DeepHistoryBacktestPanel";
 import { PerformanceTable } from "@/components/PerformanceTable";
 import { DisclaimerModal, DisclaimerBanner, DisclaimerFooter } from "@/components/Disclaimer";
 import { TradingReadinessAlert } from "@/components/TradingReadinessAlert";

@@ -215,6 +215,29 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   // was sending the predicted line miles away from spot).
   const neuralSignal = Math.max(-0.05, Math.min(0.05, neural.forecast[0] ?? 0));
   const neuralPush = neuralSignal * last * profile.neuralWeight;
+
+  // === Deep-history daily drift bridge ===
+  // Compute mean daily log-return from the deep series and convert to a
+  // per-minute drift bias. This is the ONLY way deep history influences the
+  // per-minute forecast: as a small, mathematically-derived bias term.
+  let deepDriftPerStep = 0;
+  const deep = options?.deepDailyPrices ?? [];
+  if (deep.length >= 60) {
+    const tail = deep.slice(-Math.min(deep.length, 750));
+    let sumLogRet = 0;
+    let n = 0;
+    for (let i = 1; i < tail.length; i++) {
+      const a = tail[i - 1], b = tail[i];
+      if (a > 0 && b > 0) { sumLogRet += Math.log(b / a); n++; }
+    }
+    if (n > 0) {
+      const meanDailyLogRet = sumLogRet / n;
+      const minutesPerDay = market === "stock" ? 375 : 1440;
+      // Soft-cap to ±10 bps per minute so it never dominates.
+      const perMin = Math.max(-0.001, Math.min(0.001, meanDailyLogRet / minutesPerDay));
+      deepDriftPerStep = perMin * last;
+    }
+  }
   // Drift contributions scale with sqrt(i+1), not (i+1). Cumulative linear
   // growth was pushing the predicted line wildly off the actual price by the
   // end of the horizon. sqrt-growth matches the natural diffusion scale of

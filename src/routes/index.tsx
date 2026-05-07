@@ -331,7 +331,11 @@ function PredictionEngine() {
       market: coin.market,
       llmBias: llmSignal.bias,
       llmConfidence: llmSignal.confidence,
+      deepDailyPrices: deepHistory,
     });
+    return pred;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence, deepHistory.length]);
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence]);

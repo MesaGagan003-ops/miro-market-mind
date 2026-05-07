@@ -611,6 +611,7 @@ function PredictionEngine() {
             </div>
             <div className="space-y-4 min-w-0">
               <WalkForwardPanel coin={coin} />
+              <DeepHistoryBacktestPanel coin={coin} />
               <PerformanceTable />
             </div>
           </div>

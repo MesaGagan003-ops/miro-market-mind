@@ -245,10 +245,10 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
   for (let i = 0; i < steps; i++) {
     const tStep = i + 1;
     const sqrtT = Math.sqrt(tStep);
-    const baseDrift = arima.driftPerStep * tStep; // ARIMA drift IS linear in time (it's an expectation)
-    // Wiggles come ONLY from the trained ARIMA(2,1,1) stochastic recursion.
-    // No synthetic sin/cos overlay — that produced the wig-wag pattern.
-    const arimaWiggle = arimaPath[i] - last - baseDrift;
+    // Pure mathematical trend = ARIMA expectation + deep-history daily drift.
+    const baseDrift = arima.driftPerStep * tStep + deepDriftPerStep * tStep;
+    // Pure ARIMA(2,1,1) deterministic deviation from linear drift (no shocks).
+    const arimaWiggle = arimaPath[i] - last - arima.driftPerStep * tStep;
     // Auxiliary drift terms — all sqrt-scaled so they don't dominate at long horizons.
     const auxDriftRaw =
         regimeBias * garch.sigma * 0.10 * sqrtT

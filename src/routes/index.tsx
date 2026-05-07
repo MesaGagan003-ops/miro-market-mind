@@ -568,7 +568,7 @@ function PredictionEngine() {
               <div className="panel p-3 bg-card/40 text-[10px] text-muted-foreground">
                 <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
                 {deepHistory.length > 0
-                  ? `${deepHistory.length} historical bars merged with live ticks for ${coin.market.toUpperCase()} · ${coin.symbol}`
+                  ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
                   : "Loading multi-year history…"}
               </div>
             </div>

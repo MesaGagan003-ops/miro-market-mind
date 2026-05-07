@@ -232,7 +232,7 @@ export function hybridPredict(prices: number[], steps: number, options?: HybridO
     }
     if (n > 0) {
       const meanDailyLogRet = sumLogRet / n;
-      const minutesPerDay = market === "stock" ? 375 : 1440;
+      const minutesPerDay = (market === "nse" || market === "bse") ? 375 : 1440;
       // Soft-cap to ±10 bps per minute so it never dominates.
       const perMin = Math.max(-0.001, Math.min(0.001, meanDailyLogRet / minutesPerDay));
       deepDriftPerStep = perMin * last;

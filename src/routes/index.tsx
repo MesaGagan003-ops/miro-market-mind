@@ -218,11 +218,8 @@ function PredictionEngine() {
     };
   }, [coin.market, coin.id, timeframe.id]);
 
-  // Build a 1-minute resampled price series for models. If the live feed is
-  // sparse (e.g. CoinGecko 5s polling on a low-volume coin returns the same
-  // price for many seconds), the minute-bucket series collapses to too few
-  // unique points and ARIMA fits a flat line. In that case we fall back to
-  // the raw tick history so the model has enough variation to work with.
+  // Build a strict 1-minute series for the model. One forecast step is one
+  // minute, so we must keep input cadence on minutes too.
   const resampled = useMemo(() => {
     if (ticks.length === 0) return [] as number[];
     const buckets = new Map<number, number>();
@@ -230,13 +227,25 @@ function PredictionEngine() {
       const bucket = Math.floor(t.ts / 60000);
       buckets.set(bucket, t.price);
     }
-    const minuteSeries = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
-    const uniqueMinute = new Set(minuteSeries.map((p) => p.toFixed(8))).size;
-    // Low unique-count minute series means the feed is effectively flat at the
-    // selected resolution; ARIMA/GARCH then collapse to near-zero movement.
-    if (minuteSeries.length >= 30 && uniqueMinute >= 12) return minuteSeries;
-    // Sparse feed → use raw ticks (they still capture every observed price)
-    return ticks.map((t) => t.price);
+    const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+    if (sorted.length === 0) return [] as number[];
+
+    const minuteSeries: number[] = [];
+    let cursor = sorted[0][0];
+    const end = sorted[sorted.length - 1][0];
+    let idx = 0;
+    let lastPrice = sorted[0][1];
+
+    while (cursor <= end) {
+      while (idx < sorted.length && sorted[idx][0] <= cursor) {
+        lastPrice = sorted[idx][1];
+        idx++;
+      }
+      minuteSeries.push(lastPrice);
+      cursor += 1;
+    }
+
+    return minuteSeries;
   }, [ticks]);
 
   // CRITICAL: the forecast series MUST be on a single, consistent time-scale

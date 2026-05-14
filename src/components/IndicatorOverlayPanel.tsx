@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import {
-  ComposedChart, Line, Bar, Area, XAxis, YAxis, ResponsiveContainer,
+  ComposedChart, Line, Bar, Area, XAxis, YAxis,
   Tooltip, CartesianGrid, ReferenceLine,
 } from "recharts";
 import type { HybridResult } from "@/lib/physics/hybrid";
@@ -160,8 +160,8 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
       </div>
 
       {/* Price + MA + VWAP + SuperTrend */}
-      <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+      <div style={{ width: "100%", height: 260, overflow: "auto" }}>
+        <ComposedChart data={rows} width={800} height={260} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
           <YAxis
@@ -190,11 +190,11 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
           {/* Actual price on top */}
           <Line dataKey="price" stroke="oklch(0.85 0.16 85)" strokeWidth={1.8} dot={false} isAnimationActive={false} />
         </ComposedChart>
-      </ResponsiveContainer>
+      </div>
 
       {/* MACD subchart */}
-      <ResponsiveContainer width="100%" height={120}>
-        <ComposedChart data={rows} margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
+      <div style={{ width: "100%", height: 120, overflow: "auto" }}>
+        <ComposedChart data={rows} width={800} height={120} margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
           <YAxis tick={{ fill: "oklch(0.65 0.03 85)", fontSize: 10 }} stroke="oklch(0.28 0.04 80)" width={66} orientation="right" />
@@ -207,7 +207,7 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
           <Line dataKey="macd" stroke="oklch(0.85 0.16 85)" strokeWidth={1.4} dot={false} connectNulls isAnimationActive={false} />
           <Line dataKey="macdSignal" stroke="oklch(0.65 0.24 25)" strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
         </ComposedChart>
-      </ResponsiveContainer>
+      </div>
 
       <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
         <Legend c="oklch(0.85 0.16 85)" l="Price (actual)" />

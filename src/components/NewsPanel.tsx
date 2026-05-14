@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  ComposedChart, Line, Area, XAxis, YAxis, ResponsiveContainer,
+  ComposedChart, Line, Area, XAxis, YAxis,
   ReferenceLine, Tooltip, CartesianGrid,
 } from "recharts";
 import type { MarketAsset } from "@/lib/markets";
@@ -242,8 +242,8 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
   const tEnd = data[data.length - 1]?.t ?? lastTs;
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
+    <div style={{ width: "100%", height: 320, overflow: "auto" }}>
+      <ComposedChart data={data} width={800} height={320} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
         <defs>
           <linearGradient id="actualFill2" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
@@ -281,7 +281,7 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
         <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls isAnimationActive={false} />
         <Line dataKey="adjusted" stroke={sentiment.meanSentiment >= 0 ? "oklch(0.78 0.18 145)" : "oklch(0.65 0.24 25)"} strokeWidth={2.2} dot={false} connectNulls isAnimationActive={false} />
       </ComposedChart>
-    </ResponsiveContainer>
+    </div>
   );
 }
 

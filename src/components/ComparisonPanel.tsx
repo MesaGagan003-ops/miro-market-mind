@@ -203,7 +203,8 @@ export function ComparisonPanel({ coin }: Props) {
         ) : rows.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No data.</div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+            <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
               <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
               <XAxis
@@ -237,6 +238,7 @@ export function ComparisonPanel({ coin }: Props) {
               <Line type="linear" dataKey="predicted" name="Predicted" stroke="var(--quantum)" dot={false} strokeWidth={1.6} strokeDasharray="4 3" connectNulls />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>

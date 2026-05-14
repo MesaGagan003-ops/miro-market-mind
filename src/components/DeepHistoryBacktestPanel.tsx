@@ -110,8 +110,8 @@ export function DeepHistoryBacktestPanel({ coin }: Props) {
       ) : !result ? null : (
         <>
           <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+            <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+              <LineChart data={chartData} width={800} height={200} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
                 <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
                 <XAxis dataKey="ts" tickFormatter={(v) => new Date(v).toLocaleDateString([], { year: "2-digit", month: "short" })} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
                 <YAxis domain={["auto", "auto"]} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} tickFormatter={(v) => `${((v - 1) * 100).toFixed(0)}%`} width={56} />
@@ -126,7 +126,7 @@ export function DeepHistoryBacktestPanel({ coin }: Props) {
                 <ReferenceLine y={1} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
                 <Line type="monotone" dataKey="equity" stroke="var(--quantum)" strokeWidth={1.6} dot={false} />
               </LineChart>
-            </ResponsiveContainer>
+            </div>
           </div>
           {m && (
             <div className="grid grid-cols-4 gap-2 mt-3 text-[10px]">

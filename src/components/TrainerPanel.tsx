@@ -116,8 +116,8 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
       </div>
 
       <div className="h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={pts} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+        <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+          <LineChart data={pts} width={800} height={220} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
             <XAxis dataKey="t" tickFormatter={(v) => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
             <YAxis tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} width={36} />
@@ -126,7 +126,7 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
             <Line type="monotone" dataKey="hmm" stroke="var(--hmm)" dot={false} strokeWidth={1.6} />
             <Line type="monotone" dataKey="entropy" stroke="var(--entropy)" dot={false} strokeWidth={1.8} />
           </LineChart>
-        </ResponsiveContainer>
+      </div>
       </div>
       <p className="text-[10px] text-muted-foreground mt-2">
         Monitors how ARIMA/HMM/entropy weights adapt over time. Tracks model drift and recalibration.

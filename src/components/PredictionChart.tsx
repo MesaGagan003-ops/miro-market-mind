@@ -1,4 +1,4 @@
-import { ComposedChart, Line, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip, CartesianGrid } from "recharts";
+import { ComposedChart, Line, Area, XAxis, YAxis, ReferenceLine, Tooltip, CartesianGrid } from "recharts";
 import type { HybridResult } from "@/lib/physics/hybrid";
 
 interface Props {
@@ -63,8 +63,8 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
       <div className="flex justify-between items-baseline text-[10px] px-2">
         <span className="text-muted-foreground">Forecast: {prediction.forecast.length} steps · {(prediction.forecast.length * minutesPerStep).toFixed(0)} min horizon</span>
       </div>
-      <ResponsiveContainer width="100%" height={420}>
-        <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
+      <div style={{ width: "100%", height: 420, overflow: "auto" }}>
+        <ComposedChart data={data} width={800} height={420} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
           <defs>
             <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
@@ -113,8 +113,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
           {/* Prediction */}
           <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
         </ComposedChart>
-      </ResponsiveContainer>
-
+      </div>
 
     </div>
   );

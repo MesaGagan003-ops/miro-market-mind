@@ -58,8 +58,8 @@ export function CalibrationPanel({ coin, timeframe, refreshKey }: Props) {
       ) : (
         <>
           <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+            <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+              <ComposedChart data={chartData} width={800} height={220} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
                 <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
                 <XAxis
                   type="number" dataKey="predicted" domain={[0, 1]}
@@ -84,7 +84,7 @@ export function CalibrationPanel({ coin, timeframe, refreshKey }: Props) {
                 <Line type="monotone" dataKey="observed" stroke="var(--quantum)" strokeWidth={1.5} dot={false} />
                 <Scatter data={chartData} fill="var(--bull)" />
               </ComposedChart>
-            </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Purpose & Interpretation Card */}

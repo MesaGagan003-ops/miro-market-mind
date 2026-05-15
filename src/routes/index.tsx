@@ -405,7 +405,6 @@ function PredictionEngine() {
   return (
     <div className="min-h-screen relative z-10">
       <DisclaimerModal />
-      {/* Header */}
       <header className="border-b border-border backdrop-blur-md bg-background/70 sticky top-0 z-40">
         <div className="container py-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
@@ -441,8 +440,7 @@ function PredictionEngine() {
         </div>
       </header>
 
-      {/* Main */}
-      <main className="container py-4 space-y-2">
+      <main className="container py-4 space-y-4 lg:space-y-5">
         <DisclaimerBanner />
 
         <TradingReadinessAlert
@@ -460,50 +458,60 @@ function PredictionEngine() {
           <ProviderHealthPanel items={healthItems} />
         </div>
 
-        <section className="space-y-2">
-          <div className="flex items-end justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="font-display font-semibold text-foreground">Live forecast workspace</h2>
-              <p className="text-[11px] text-muted-foreground">Forecast, execution bias, and market context in one place.</p>
-            </div>
+        <section className="space-y-3">
+          <div>
+            <h2 className="font-display font-semibold text-foreground">Market Workspace</h2>
+            <p className="text-[11px] text-muted-foreground">A clean, ordered layout for the live market view and supporting analysis panels.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.85fr)_260px] gap-3 items-start">
-            <div className="panel scan-line min-w-0">
-            <div className="flex items-baseline justify-between mb-3">
-              <div>
-                <h2 className="font-display font-semibold text-foreground">
-                  {coin.name} <span className="text-muted-foreground">·</span>{" "}
-                  <span className="text-primary">{timeframe.label} forecast</span>
-                </h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Hybrid path = ARIMA(2,1,1) + HMM regime drift + GARCH volatility, SSL-bounded
-                </p>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div className="xl:col-span-2 panel scan-line min-w-0">
+              <DashboardCardHeader
+                title={`${coin.name} · ${timeframe.label} forecast`}
+                description="Live price feed and forecast chart"
+                action={
+                  prediction ? (
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Final {timeframe.label}</div>
+                      <div
+                        className="text-xl font-display font-bold"
+                        style={{
+                          color:
+                            prediction.direction === "up"
+                              ? "var(--bull)"
+                              : prediction.direction === "down"
+                                ? "var(--bear)"
+                                : "var(--foreground)",
+                        }}
+                      >
+                        ${formatLive(prediction.finalPrice)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Δ {currentPrice > 0 ? ((prediction.finalPrice - currentPrice) / currentPrice * 100).toFixed(2) : "0.00"}%
+                      </div>
+                    </div>
+                  ) : null
+                }
+              />
+              <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <CoinPicker value={coin} onChange={setCoin} />
+                <TimeframePicker value={timeframe} onChange={setTimeframe} />
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1">
+                  <span className="live-dot" />
+                  <span>
+                    {coin.market === "crypto"
+                      ? coin.binanceSymbol
+                        ? "Binance tick"
+                        : "CoinGecko poll"
+                      : coin.market === "forex"
+                        ? "Forex feed"
+                        : "Yahoo Finance"}
+                  </span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {currentPrice > 0 ? `$${formatLive(currentPrice)}` : "—"}
+                  </span>
+                </span>
               </div>
-              {prediction && (
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Final {timeframe.label}
-                  </div>
-                  <div
-                    className="text-xl font-display font-bold"
-                    style={{
-                      color:
-                        prediction.direction === "up"
-                          ? "var(--bull)"
-                          : prediction.direction === "down"
-                            ? "var(--bear)"
-                            : "var(--foreground)",
-                    }}
-                  >
-                    ${formatLive(prediction.finalPrice)}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Δ {((prediction.finalPrice - currentPrice) / currentPrice * 100).toFixed(2)}%
-                  </div>
-                </div>
-              )}
-            </div>
               {prediction && currentPrice > 0 ? (
                 <PredictionChart
                   history={ticks.slice(-240).map((t) => ({ ts: t.ts, price: t.price }))}
@@ -512,27 +520,22 @@ function PredictionEngine() {
                   minutesPerStep={minutesPerStep}
                 />
               ) : (
-                <div className="h-[420px] flex items-center justify-center text-muted-foreground text-sm">
+                <div className="h-[420px] flex items-center justify-center text-muted-foreground text-sm rounded border border-border/60 bg-card/20">
                   <div className="text-center">
                     <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                    <div>Streaming ticks & fitting models…</div>
+                    <div>Streaming ticks &amp; fitting models…</div>
                   </div>
                 </div>
               )}
               <ChartLegend />
             </div>
 
-            <div className="sidebar-stack min-w-0">
-              <div className="panel panel--compact controls-sticky">
-                <div className="flex flex-col gap-2">
-                  <CoinPicker value={coin} onChange={setCoin} />
-                  <TimeframePicker value={timeframe} onChange={setTimeframe} />
-                </div>
-              </div>
-              <div className="panel">
-                <h3 className="font-display font-semibold text-foreground mb-4">
-                  <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
-                </h3>
+            <div className="panel min-w-0">
+              <DashboardCardHeader
+                title="Strategic Plan & News Sentiment"
+                description="Decision layer, context, and confidence"
+              />
+              <div className="space-y-4">
                 {prediction && currentPrice > 0 ? (
                   <StrategicPlanPanel
                     prediction={prediction}
@@ -542,118 +545,102 @@ function PredictionEngine() {
                     llmSignal={llmSignal}
                   />
                 ) : (
-                  <div className="text-sm text-muted-foreground">Strategic recommendation appears once the first forecast is ready.</div>
+                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">Strategic recommendation appears once the first forecast is ready.</div>
                 )}
-              </div>
 
-              {prediction ? (
-                <div className="panel">
+                {prediction ? (
                   <AccuracyTracker
                     stats={stats}
                     currentDirection={prediction.direction}
                     confidence={prediction.hybridConfidence}
                   />
-                </div>
-              ) : (
-                <div className="panel text-sm text-muted-foreground">Awaiting first prediction…</div>
-              )}
+                ) : (
+                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">Awaiting first prediction…</div>
+                )}
 
-              <div className="panel panel--compact bg-card/50">
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  News & Sentiment
-                </h3>
-                <div className="text-[10px] text-muted-foreground leading-relaxed">
-                  {llmSignal.rationale ? (
-                    <div>
-                      <div className="text-foreground font-semibold mb-1">{llmSignal.rationale}</div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-border rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="h-full bg-primary"
-                            style={{ width: `${llmSignal.confidence * 100}%` }}
-                          />
+                <div className="rounded border border-border/60 bg-card/20 p-3">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">News Sentiment</h3>
+                  <div className="text-[11px] leading-relaxed text-muted-foreground">
+                    {llmSignal.rationale ? (
+                      <div>
+                        <div className="mb-2 font-semibold text-foreground">{llmSignal.rationale}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+                            <div className="h-full bg-primary" style={{ width: `${llmSignal.confidence * 100}%` }} />
+                          </div>
+                          <span className="font-semibold text-foreground">{(llmSignal.confidence * 100).toFixed(0)}%</span>
                         </div>
-                        <span className="font-semibold">{(llmSignal.confidence * 100).toFixed(0)}%</span>
                       </div>
-                    </div>
-                  ) : (
-                    "Loading sentiment analysis…"
-                  )}
+                    ) : (
+                      "Loading sentiment analysis…"
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded border border-border/60 bg-card/20 p-3 text-[11px] text-muted-foreground">
+                  <div className="mb-1 uppercase tracking-wider font-semibold text-foreground">Training corpus</div>
+                  {deepHistory.length > 0
+                    ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
+                    : "Loading multi-year history…"}
                 </div>
               </div>
-
-              <div className="panel panel--compact bg-card/40 text-[10px] text-muted-foreground">
-                <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
-                {deepHistory.length > 0
-                  ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
-                  : "Loading multi-year history…"}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <div>
-            <h2 className="font-display font-semibold text-foreground">Technical structure</h2>
-            <p className="text-[11px] text-muted-foreground">Overlay indicators and concise metrics aligned with the hybrid forecast.</p>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-3 items-start">
-            <div className="min-w-0">
-              <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
             </div>
 
-            <div className="sidebar-stack min-w-0">
+            <div className="panel min-w-0">
+              <DashboardCardHeader
+                title="Technical Indicators"
+                description="Overlay and metric summary"
+              />
               {prediction ? (
-                <TechnicalIndicatorMetrics
-                  prediction={prediction}
-                  currentPrice={currentPrice}
-                  recentPrices={modelSeries}
-                />
+                <div className="space-y-4">
+                  <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
+                  <TechnicalIndicatorMetrics
+                    prediction={prediction}
+                    currentPrice={currentPrice}
+                    recentPrices={modelSeries}
+                  />
+                </div>
               ) : (
-                <div className="panel text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
+                <div className="rounded border border-border/60 bg-card/20 p-3 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
               )}
             </div>
-          </div>
-        </section>
 
-        <section className="space-y-2">
-          <div>
-            <h2 className="font-display font-semibold text-foreground">Validation & training</h2>
-            <p className="text-[11px] text-muted-foreground">Adaptive learning, calibration, and walk-forward validation for the selected market.</p>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-3 items-start">
-            <div className="space-y-3 min-w-0">
-              <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
-              <CalibrationPanel coin={coin} timeframe={timeframe} />
+            <div className="xl:col-span-2 panel min-w-0">
+              <DashboardCardHeader
+                title="Validation / Backtest Panels"
+                description="Adaptive learning, calibration, and historical validation"
+              />
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                <div className="space-y-4 min-w-0">
+                  <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
+                  <CalibrationPanel coin={coin} timeframe={timeframe} />
+                </div>
+                <div className="space-y-4 min-w-0">
+                  <WalkForwardPanel coin={coin} />
+                  <DeepHistoryBacktestPanel coin={coin} />
+                  <PerformanceTable />
+                </div>
+              </div>
             </div>
-            <div className="sidebar-stack min-w-0">
-              <WalkForwardPanel coin={coin} />
-              <DeepHistoryBacktestPanel coin={coin} />
-              <PerformanceTable />
-            </div>
-          </div>
-        </section>
 
-        {prediction && (
-          <section className="space-y-2">
-            <div>
-              <h2 className="font-display font-semibold text-foreground">Model diagnostics</h2>
-              <p className="text-[11px] text-muted-foreground">Detailed physics and statistical internals behind the active forecast.</p>
-            </div>
-            <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
-          </section>
-        )}
+            {prediction && (
+              <div className="xl:col-span-2 panel min-w-0">
+                <DashboardCardHeader
+                  title="Model Diagnostics"
+                  description="Detailed physics and statistical internals behind the active forecast"
+                />
+                <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
+              </div>
+            )}
 
-        <section className="space-y-2">
-          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="font-display font-semibold text-foreground">Paper trading sandbox</h2>
-              <p className="text-[11px] text-muted-foreground">Optional execution simulator placed below the core analysis workflow.</p>
+            <div className="xl:col-span-2 panel min-w-0">
+              <DashboardCardHeader
+                title="Paper Trading Sandbox"
+                description="Optional execution simulator placed below the core analysis workflow"
+              />
+              <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
             </div>
           </div>
-          <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
         </section>
 
         <div className="panel text-[11px] text-muted-foreground leading-relaxed">
@@ -683,6 +670,26 @@ function ChartLegend() {
           {i.l}
         </div>
       ))}
+    </div>
+  );
+}
+
+function DashboardCardHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+      <div>
+        <h3 className="font-display text-sm font-semibold text-foreground">{title}</h3>
+        {description ? <p className="mt-1 text-[11px] text-muted-foreground">{description}</p> : null}
+      </div>
+      {action ? <div>{action}</div> : null}
     </div>
   );
 }

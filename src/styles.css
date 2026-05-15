@@ -190,4 +190,24 @@
   }
   /* Slightly tighter section spacing for a sleeker grid look */
   .section-tight > * + * { margin-top: 0.5rem; }
+  /* Consistent panel inner rhythm */
+  .panel {
+    padding: 1rem;
+  }
+  .panel > * + * {
+    margin-top: 0.6rem;
+  }
+  /* Compact variants keep visual hierarchy but are consistent */
+  .panel--compact { padding: 0.75rem; }
+
+  /* Sticky compact controls card for the right sidebar */
+  .controls-sticky {
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    border-radius: calc(var(--radius) - 2px);
+    background: linear-gradient(180deg, oklch(0.18 0.03 265 / 0.85), oklch(0.15 0.03 265 / 0.85));
+  }
+  @media (min-width: 1280px) {
+    .controls-sticky { position: sticky; top: 96px; z-index: 40; }
+  }
 }

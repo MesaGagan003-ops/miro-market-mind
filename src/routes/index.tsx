@@ -523,6 +523,12 @@ function PredictionEngine() {
             </div>
 
             <div className="sidebar-stack min-w-0">
+              <div className="panel p-3 controls-sticky">
+                <div className="flex flex-col gap-2">
+                  <CoinPicker value={coin} onChange={setCoin} />
+                  <TimeframePicker value={timeframe} onChange={setTimeframe} />
+                </div>
+              </div>
               <div className="panel p-4">
                 <h3 className="font-display font-semibold text-foreground mb-4">
                   <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer

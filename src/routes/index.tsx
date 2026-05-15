@@ -442,7 +442,7 @@ function PredictionEngine() {
       </header>
 
       {/* Main */}
-      <main className="max-w-[1600px] mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-[1600px] mx-auto px-4 py-6 space-y-3 section-tight">
         <DisclaimerBanner />
 
         <TradingReadinessAlert
@@ -522,7 +522,7 @@ function PredictionEngine() {
               <ChartLegend />
             </div>
 
-            <div className="space-y-4 min-w-0 flex flex-col">
+            <div className="sidebar-stack min-w-0">
               <div className="panel p-4">
                 <h3 className="font-display font-semibold text-foreground mb-4">
                   <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
@@ -541,11 +541,13 @@ function PredictionEngine() {
               </div>
 
               {prediction ? (
-                <AccuracyTracker
-                  stats={stats}
-                  currentDirection={prediction.direction}
-                  confidence={prediction.hybridConfidence}
-                />
+                <div className="panel p-4">
+                  <AccuracyTracker
+                    stats={stats}
+                    currentDirection={prediction.direction}
+                    confidence={prediction.hybridConfidence}
+                  />
+                </div>
               ) : (
                 <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
               )}
@@ -590,20 +592,22 @@ function PredictionEngine() {
             <p className="text-[11px] text-muted-foreground">Overlay indicators and concise metrics aligned with the hybrid forecast.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
             <div className="min-w-0">
               <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
             </div>
 
-            {prediction ? (
-              <TechnicalIndicatorMetrics
-                prediction={prediction}
-                currentPrice={currentPrice}
-                recentPrices={modelSeries}
-              />
-            ) : (
-              <div className="panel p-4 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
-            )}
+            <div className="sidebar-stack min-w-0">
+              {prediction ? (
+                <TechnicalIndicatorMetrics
+                  prediction={prediction}
+                  currentPrice={currentPrice}
+                  recentPrices={modelSeries}
+                />
+              ) : (
+                <div className="panel p-4 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -613,12 +617,12 @@ function PredictionEngine() {
             <p className="text-[11px] text-muted-foreground">Adaptive learning, calibration, and walk-forward validation for the selected market.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
             <div className="space-y-4 min-w-0">
               <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
               <CalibrationPanel coin={coin} timeframe={timeframe} />
             </div>
-            <div className="space-y-4 min-w-0">
+            <div className="sidebar-stack min-w-0">
               <WalkForwardPanel coin={coin} />
               <DeepHistoryBacktestPanel coin={coin} />
               <PerformanceTable />

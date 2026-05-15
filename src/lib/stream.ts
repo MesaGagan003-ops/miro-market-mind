@@ -23,7 +23,7 @@ interface StreamOptions {
   onStatus?: ProviderStatusHandler;
 }
 
-export function subscribeBinance(symbol: string, onTick: TickHandler): () => void {
+export function subscribeBinance(symbol: string, onTick: TickHandler, opts?: StreamOptions): () => void {
   let stopped = false;
   let lastPrice = 0;
   const poll = async () => {
@@ -37,7 +37,13 @@ export function subscribeBinance(symbol: string, onTick: TickHandler): () => voi
           // still emit periodic ticks so model recomputes
           onTick(t);
         }
-      } catch {}
+      } catch (e) {
+        // Surface provider status so UI can display the failure
+        try {
+          opts?.onStatus?.({ provider: "binance", state: "failing", detail: String((e as Error)?.message ?? e) });
+        } catch {}
+        console.error("[subscribeBinance] error", e);
+      }
       await new Promise((r) => setTimeout(r, 1500));
     }
   };
@@ -47,7 +53,7 @@ export function subscribeBinance(symbol: string, onTick: TickHandler): () => voi
   };
 }
 
-export function subscribeCoinGecko(coinId: string, onTick: TickHandler): () => void {
+export function subscribeCoinGecko(coinId: string, onTick: TickHandler, opts?: StreamOptions): () => void {
   let stopped = false;
   const poll = async () => {
     while (!stopped) {
@@ -55,12 +61,21 @@ export function subscribeCoinGecko(coinId: string, onTick: TickHandler): () => v
         const res = await fetch(
           `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_last_updated_at=true`,
         );
+        if (!res.ok) {
+          opts?.onStatus?.({ provider: "coingecko", state: "failing", detail: `status ${res.status}` });
+        }
         const data = await res.json();
         const entry = data[coinId];
         if (entry?.usd) {
+          opts?.onStatus?.({ provider: "coingecko", state: "live" });
           onTick({ price: entry.usd, ts: (entry.last_updated_at ?? Date.now() / 1000) * 1000 });
         }
-      } catch {}
+      } catch (e) {
+        try {
+          opts?.onStatus?.({ provider: "coingecko", state: "failing", detail: String((e as Error)?.message ?? e) });
+        } catch {}
+        console.error("[subscribeCoinGecko] error", e);
+      }
       await new Promise((r) => setTimeout(r, 5000));
     }
   };
@@ -98,7 +113,7 @@ export async function fetchCoinGeckoHistory(coinId: string, days = 1): Promise<T
 
 // Yahoo Finance polling for assets (free, delayed data).
 // Primary data source for NSE/BSE indices and stocks.
-function subscribeYahoo(symbol: string, onTick: TickHandler): () => void {
+function subscribeYahoo(symbol: string, onTick: TickHandler, opts?: StreamOptions): () => void {
   let stopped = false;
   let lastTs = 0;
   const poll = async () => {
@@ -110,11 +125,17 @@ function subscribeYahoo(symbol: string, onTick: TickHandler): () => void {
         const last = rows[rows.length - 1];
         if (last && last.ts !== lastTs) {
           lastTs = last.ts;
+          opts?.onStatus?.({ provider: "yahoo", state: "live" });
           onTick({ ts: Date.now(), price: last.price });
         } else if (last) {
           onTick({ ts: Date.now(), price: last.price });
         }
-      } catch {}
+      } catch (e) {
+        try {
+          opts?.onStatus?.({ provider: "yahoo", state: "failing", detail: String((e as Error)?.message ?? e) });
+        } catch {}
+        console.error("[subscribeYahoo] error", e);
+      }
       await new Promise((r) => setTimeout(r, 5000));
     }
   };
@@ -127,8 +148,8 @@ function subscribeYahoo(symbol: string, onTick: TickHandler): () => void {
 export function subscribeAsset(asset: MarketAsset, onTick: TickHandler, opts?: StreamOptions): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
-    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick);
-    return subscribeCoinGecko(asset.id, onTick);
+    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts);
+    return subscribeCoinGecko(asset.id, onTick, opts);
   }
 
   if (asset.market === "forex") {
@@ -170,7 +191,7 @@ export function subscribeAsset(asset: MarketAsset, onTick: TickHandler, opts?: S
       state: "live",
       detail: "Free delayed data",
     });
-    return subscribeYahoo(asset.yahooSymbol, onTick);
+    return subscribeYahoo(asset.yahooSymbol, onTick, opts);
   }
 
   return () => {};

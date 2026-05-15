@@ -100,7 +100,7 @@ export function WalkForwardPanel({ coin }: Props) {
       ) : !result ? null : (
         <>
           <div className="h-[200px]">
-            <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+            <div style={{ width: "100%", height: "100%", overflow: "hidden", display: "flex", justifyContent: "center" }}>
               <LineChart data={chartData} width={800} height={200} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
                 <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
                 <XAxis dataKey="ts" tickFormatter={(v) => new Date(v).toLocaleDateString([], { month: "short", day: "numeric" })} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />

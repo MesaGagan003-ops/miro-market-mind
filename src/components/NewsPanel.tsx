@@ -242,7 +242,7 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
   const tEnd = data[data.length - 1]?.t ?? lastTs;
 
   return (
-    <div style={{ width: "100%", height: 320, overflow: "auto" }}>
+    <div style={{ width: "100%", height: 320, overflow: "auto", display: "flex", justifyContent: "center" }}>
       <ComposedChart data={data} width={800} height={320} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
         <defs>
           <linearGradient id="actualFill2" x1="0" y1="0" x2="0" y2="1">

@@ -63,7 +63,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
       <div className="flex justify-between items-baseline text-[10px] px-2">
         <span className="text-muted-foreground">Forecast: {prediction.forecast.length} steps · {(prediction.forecast.length * minutesPerStep).toFixed(0)} min horizon</span>
       </div>
-      <div style={{ width: "100%", height: 420, overflow: "auto" }}>
+      <div style={{ width: "100%", height: 420, overflow: "auto", display: "flex", justifyContent: "center" }}>
         <ComposedChart data={data} width={800} height={420} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
           <defs>
             <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">

@@ -160,7 +160,7 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
       </div>
 
       {/* Price + MA + VWAP + SuperTrend */}
-      <div style={{ width: "100%", height: 260, overflow: "auto" }}>
+      <div style={{ width: "100%", height: 260, overflow: "auto", display: "flex", justifyContent: "center" }}>
         <ComposedChart data={rows} width={800} height={260} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
@@ -193,7 +193,7 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
       </div>
 
       {/* MACD subchart */}
-      <div style={{ width: "100%", height: 120, overflow: "auto" }}>
+      <div style={{ width: "100%", height: 120, overflow: "auto", display: "flex", justifyContent: "center" }}>
         <ComposedChart data={rows} width={800} height={120} margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />

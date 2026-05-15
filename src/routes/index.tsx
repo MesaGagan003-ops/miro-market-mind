@@ -407,7 +407,7 @@ function PredictionEngine() {
       <DisclaimerModal />
       {/* Header */}
       <header className="border-b border-border backdrop-blur-md bg-background/70 sticky top-0 z-40">
-        <div className="max-w-[1000px] mx-auto px-3 py-3 flex items-center gap-4 flex-wrap">
+        <div className="max-w-[1280px] mx-auto px-3 py-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <img src="/favicon.ico" alt="MIRO" className="w-9 h-9 rounded-full glow-primary object-cover border border-primary/40" />
             <div>
@@ -433,7 +433,7 @@ function PredictionEngine() {
             </div>
           </div>
         </div>
-        <div className="max-w-[1000px] mx-auto px-3 pb-3 flex items-center gap-3 flex-wrap">
+        <div className="max-w-[1280px] mx-auto px-3 pb-3 flex items-center gap-3 flex-wrap">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Predict horizon →
           </span>
@@ -442,7 +442,7 @@ function PredictionEngine() {
       </header>
 
       {/* Main */}
-      <main className="max-w-[1000px] mx-auto px-3 py-4 space-y-2">
+      <main className="max-w-[1280px] mx-auto px-3 py-4 space-y-2">
         <DisclaimerBanner />
 
         <TradingReadinessAlert
@@ -453,7 +453,7 @@ function PredictionEngine() {
           sampleCount={adaptive?.samples ?? 0}
         />
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
           <div className="xl:col-span-2">
             <DataSourceInfo />
           </div>
@@ -468,7 +468,7 @@ function PredictionEngine() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_280px] gap-2 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.85fr)_260px] gap-3 items-start">
             <div className="panel scan-line min-w-0">
             <div className="flex items-baseline justify-between mb-3">
               <div>
@@ -598,7 +598,7 @@ function PredictionEngine() {
             <p className="text-[11px] text-muted-foreground">Overlay indicators and concise metrics aligned with the hybrid forecast.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-2 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-3 items-start">
             <div className="min-w-0">
               <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
             </div>
@@ -623,7 +623,7 @@ function PredictionEngine() {
             <p className="text-[11px] text-muted-foreground">Adaptive learning, calibration, and walk-forward validation for the selected market.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-2 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-3 items-start">
             <div className="space-y-3 min-w-0">
               <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
               <CalibrationPanel coin={coin} timeframe={timeframe} />

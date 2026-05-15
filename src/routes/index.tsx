@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CoinPicker } from "@/components/CoinPicker";
 import { TimeframePicker } from "@/components/TimeframePicker";
 import { PredictionChart } from "@/components/PredictionChart";
-import { ModelPanels } from "@/components/ModelPanels";
+import { ModelPanels, type RegimeHistoryEntry } from "@/components/ModelPanels";
 import { AccuracyTracker } from "@/components/AccuracyTracker";
 import { DemoTrading } from "@/components/DemoTrading";
 import { DataSourceInfo } from "@/components/DataSourceInfo";
@@ -73,6 +73,7 @@ function PredictionEngine() {
   const [llmSignal, setLlmSignal] = useState<{ bias: number; confidence: number; rationale: string }>({ bias: 0, confidence: 0, rationale: "" });
   const [dataQuality, setDataQuality] = useState<DataQualityScore>({ score: 0, isGappy: true, isSparse: true, isFresh: false, detail: "Initializing" });
   const [isReadyToTrade, setIsReadyToTrade] = useState(false);
+  const [regimeHistory, setRegimeHistory] = useState<RegimeHistoryEntry[]>([]);
   const lastRecordRef = useRef<number>(0);
 
   const onStatus = useMemo<ProviderStatusHandler>(() => {
@@ -299,6 +300,10 @@ function PredictionEngine() {
     };
   }, [coin.market, coin.id, coin.symbol, currentPrice, modelSeries]);
 
+  useEffect(() => {
+    setRegimeHistory([]);
+  }, [coin.market, coin.id, timeframe.id]);
+
   // Assess data quality from live ticks (pure compute — no setState here)
   const dataQualityMemo = useMemo(() => assessDataQuality(ticks), [ticks]);
 
@@ -398,6 +403,23 @@ function PredictionEngine() {
     }
     setStats(computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
   }, [prediction, currentPrice, coin.id, coin.market, timeframe, dataQuality.score]);
+
+  useEffect(() => {
+    if (!prediction) return;
+    const observedAt = ticks[ticks.length - 1]?.ts ?? Date.now();
+    const currentState = prediction.hmm.dominantState;
+
+    setRegimeHistory((prev) => {
+      if (prev.length === 0) {
+        return [{ state: currentState, startedAt: observedAt }];
+      }
+
+      const last = prev[prev.length - 1];
+      if (last.state === currentState) return prev;
+
+      return [...prev.slice(-11), { state: currentState, startedAt: observedAt }];
+    });
+  }, [prediction?.hmm.dominantState, ticks.length]);
 
   const minutesPerStep = Math.max(1, timeframe.minutes / Math.min(timeframe.minutes, 200));
   const healthItems = useMemo(() => Object.values(providerHealth).sort((a, b) => a.provider.localeCompare(b.provider)), [providerHealth]);
@@ -629,7 +651,7 @@ function PredictionEngine() {
                   title="Model Diagnostics"
                   description="Detailed physics and statistical internals behind the active forecast"
                 />
-                <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} />
+                <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} regimeHistory={regimeHistory} />
               </div>
             )}
 

@@ -1,18 +1,26 @@
 import type { HybridResult } from "@/lib/physics/hybrid";
 import { HMM_STATE_LABELS } from "@/lib/physics/hmm";
 
+export interface RegimeHistoryEntry {
+  state: 0 | 1 | 2;
+  startedAt: number;
+}
+
 interface Props {
   result: HybridResult;
   currentPrice: number;
   minutes: number;
+  regimeHistory: RegimeHistoryEntry[];
 }
 
-export function ModelPanels({ result }: Props) {
+export function ModelPanels({ result, regimeHistory }: Props) {
   const { arima, garch, hmm, entropy, hurst, hamiltonian, ssl,
     kalman, jump, hawkes, wavelet, transferEntropy: te, multifractal, fokkerPlanck } = result;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <RegimeDurationForecast hmm={hmm} regimeHistory={regimeHistory} />
+
       {/* === Phase B Tier 1+2 physics summary === */}
       <Panel
         title="Phase B Physics (Tier 1+2)"
@@ -223,6 +231,152 @@ export function ModelPanels({ result }: Props) {
       </Panel>
     </div>
   );
+}
+
+function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm"]; regimeHistory: RegimeHistoryEntry[] }) {
+  const currentState = hmm.dominantState;
+  const stateLabels = ["Bear", "Sideways", "Bull"];
+  const stateNames = ["Bearish", "Sideways", "Bullish"];
+  const stateColors = ["var(--bear)", "var(--entropy)", "var(--bull)"];
+  const currentColor = stateColors[currentState];
+  const selfTransition = hmm.transitionMatrix[currentState]?.[currentState] ?? 0;
+  const continuePct = Math.max(0, Math.min(100, selfTransition * 100));
+  const flipPct = Math.max(0, 100 - continuePct);
+  const expectedDuration = selfTransition >= 1 ? Number.POSITIVE_INFINITY : 1 / Math.max(1e-6, 1 - selfTransition);
+  const historySegments = (() => {
+    const segments = regimeHistory.length > 0 ? [...regimeHistory] : [{ state: currentState, startedAt: Date.now() }];
+    if (segments[segments.length - 1].state !== currentState) {
+      segments.push({ state: currentState, startedAt: Date.now() });
+    }
+    return segments;
+  })();
+
+  const currentSegment = historySegments[historySegments.length - 1];
+  const elapsedBars = currentSegment ? Math.max(0, (Date.now() - currentSegment.startedAt) / 60_000) : 0;
+
+  const historyWidths = historySegments.map((segment, index) => {
+    const nextStart = historySegments[index + 1]?.startedAt ?? Date.now();
+    return Math.max(0.25, nextStart - segment.startedAt);
+  });
+  const totalHistory = historyWidths.reduce((a, b) => a + b, 0) || 1;
+
+  return (
+    <Panel
+      title="Regime Duration Forecast"
+      accent={currentColor}
+      subtitle="HMM transition matrix · expected duration · live regime history"
+      full
+    >
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Current regime</div>
+              <div
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-semibold"
+                style={{ boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${currentColor} 18%, transparent)` }}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: currentColor }} />
+                <span className="text-foreground">{stateNames[currentState]}</span>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Already lasted</div>
+              <div className="text-sm font-semibold text-foreground font-mono">
+                {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} bars · {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} min
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded border border-border/60 bg-card/40 p-3">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground">Continue vs flip</span>
+              <span className="font-mono text-foreground">{continuePct.toFixed(0)}% / {flipPct.toFixed(0)}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted/70">
+              <div className="h-full rounded-full" style={{ width: `${continuePct}%`, background: currentColor }} />
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
+              <span>Continues</span>
+              <span>Flips</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {stateLabels.map((label, index) => {
+              const pii = hmm.transitionMatrix[index]?.[index] ?? 0;
+              const duration = ppiToDuration(pii);
+              return (
+                <div key={label} className="rounded border border-border/60 bg-card/35 p-2">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+                    <span className="h-2 w-2 rounded-full" style={{ background: stateColors[index] }} />
+                  </div>
+                  <div className="text-sm font-semibold text-foreground font-mono">{formatDuration(duration)} bars</div>
+                  <div className="text-[10px] text-muted-foreground">Pii {(pii * 100).toFixed(0)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground uppercase tracking-wider">Expected remaining duration</span>
+              <span className="font-mono text-foreground">{formatDuration(expectedDuration)} bars</span>
+            </div>
+            <div className="rounded border border-border/60 bg-card/40 p-3">
+              <div className="text-[10px] text-muted-foreground leading-relaxed">
+                Calculated from the HMM self-transition probability: duration = 1 / (1 - Pii)
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground uppercase tracking-wider">Regime history</span>
+              <span className="text-muted-foreground">Recent switches</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full border border-border/60 bg-muted/60 flex">
+              {historySegments.map((segment, index) => {
+                const nextStart = historySegments[index + 1]?.startedAt ?? Date.now();
+                const width = Math.max(0.25, nextStart - segment.startedAt);
+                const pct = (width / totalHistory) * 100;
+                return (
+                  <div
+                    key={`${segment.startedAt}-${index}`}
+                    title={`${stateNames[segment.state]} · ${formatDuration(width / 60_000)} bars`}
+                    className="h-full"
+                    style={{ width: `${pct}%`, background: stateColors[segment.state] }}
+                  />
+                );
+              })}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+              {stateNames.map((label, index) => (
+                <span key={label} className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: stateColors[index] }} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function ppiToDuration(pii: number) {
+  if (pii >= 1) return Number.POSITIVE_INFINITY;
+  return 1 / Math.max(1e-6, 1 - pii);
+}
+
+function formatDuration(v: number) {
+  if (!Number.isFinite(v)) return "∞";
+  return v >= 10 ? v.toFixed(0) : v.toFixed(1);
 }
 
 function TransitionMatrix({ matrix }: { matrix: number[][] }) {

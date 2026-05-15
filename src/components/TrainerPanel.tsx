@@ -117,7 +117,7 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
 
       <div className="h-[220px]">
         <div style={{ width: "100%", height: "100%", overflow: "hidden", display: "flex", justifyContent: "center" }}>
-          <LineChart data={pts} width={800} height={220} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+          <LineChart data={pts} width={900} height={220} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
             <XAxis dataKey="t" tickFormatter={(v) => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
             <YAxis tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} width={36} />

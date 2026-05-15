@@ -442,7 +442,7 @@ function PredictionEngine() {
       </header>
 
       {/* Main */}
-      <main className="max-w-[1600px] mx-auto px-4 py-6 space-y-3 section-tight">
+      <main className="max-w-[1600px] mx-auto px-4 py-5 space-y-2">
         <DisclaimerBanner />
 
         <TradingReadinessAlert
@@ -453,14 +453,14 @@ function PredictionEngine() {
           sampleCount={adaptive?.samples ?? 0}
         />
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
           <div className="xl:col-span-2">
             <DataSourceInfo />
           </div>
           <ProviderHealthPanel items={healthItems} />
         </div>
 
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div className="flex items-end justify-between gap-3 flex-wrap">
             <div>
               <h2 className="font-display font-semibold text-foreground">Live forecast workspace</h2>
@@ -468,8 +468,8 @@ function PredictionEngine() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_360px] gap-4 items-start">
-            <div className="panel p-4 scan-line min-w-0">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_360px] gap-3 items-start">
+            <div className="panel scan-line min-w-0">
             <div className="flex items-baseline justify-between mb-3">
               <div>
                 <h2 className="font-display font-semibold text-foreground">
@@ -523,13 +523,13 @@ function PredictionEngine() {
             </div>
 
             <div className="sidebar-stack min-w-0">
-              <div className="panel p-3 controls-sticky">
+              <div className="panel panel--compact controls-sticky">
                 <div className="flex flex-col gap-2">
                   <CoinPicker value={coin} onChange={setCoin} />
                   <TimeframePicker value={timeframe} onChange={setTimeframe} />
                 </div>
               </div>
-              <div className="panel p-4">
+              <div className="panel">
                 <h3 className="font-display font-semibold text-foreground mb-4">
                   <span className="text-primary">Strategic Plan</span> · Hybrid + technical decision layer
                 </h3>
@@ -547,7 +547,7 @@ function PredictionEngine() {
               </div>
 
               {prediction ? (
-                <div className="panel p-4">
+                <div className="panel">
                   <AccuracyTracker
                     stats={stats}
                     currentDirection={prediction.direction}
@@ -555,10 +555,10 @@ function PredictionEngine() {
                   />
                 </div>
               ) : (
-                <div className="panel p-4 text-sm text-muted-foreground">Awaiting first prediction…</div>
+                <div className="panel text-sm text-muted-foreground">Awaiting first prediction…</div>
               )}
 
-              <div className="panel p-3 bg-card/50">
+              <div className="panel panel--compact bg-card/50">
                 <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
                   News & Sentiment
                 </h3>
@@ -582,7 +582,7 @@ function PredictionEngine() {
                 </div>
               </div>
 
-              <div className="panel p-3 bg-card/40 text-[10px] text-muted-foreground">
+              <div className="panel panel--compact bg-card/40 text-[10px] text-muted-foreground">
                 <div className="uppercase tracking-wider font-semibold text-foreground mb-1">Training corpus</div>
                 {deepHistory.length > 0
                   ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
@@ -592,13 +592,13 @@ function PredictionEngine() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div>
             <h2 className="font-display font-semibold text-foreground">Technical structure</h2>
             <p className="text-[11px] text-muted-foreground">Overlay indicators and concise metrics aligned with the hybrid forecast.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 items-start">
             <div className="min-w-0">
               <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
             </div>
@@ -611,19 +611,19 @@ function PredictionEngine() {
                   recentPrices={modelSeries}
                 />
               ) : (
-                <div className="panel p-4 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
+                <div className="panel text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
               )}
             </div>
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div>
             <h2 className="font-display font-semibold text-foreground">Validation & training</h2>
             <p className="text-[11px] text-muted-foreground">Adaptive learning, calibration, and walk-forward validation for the selected market.</p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 items-start">
             <div className="space-y-4 min-w-0">
               <TrainerPanel market={coin.market} symbol={coin.id} timeframe={timeframe.id} />
               <CalibrationPanel coin={coin} timeframe={timeframe} />
@@ -637,7 +637,7 @@ function PredictionEngine() {
         </section>
 
         {prediction && (
-          <section className="space-y-3">
+          <section className="space-y-2">
             <div>
               <h2 className="font-display font-semibold text-foreground">Model diagnostics</h2>
               <p className="text-[11px] text-muted-foreground">Detailed physics and statistical internals behind the active forecast.</p>
@@ -646,7 +646,7 @@ function PredictionEngine() {
           </section>
         )}
 
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <div>
               <h2 className="font-display font-semibold text-foreground">Paper trading sandbox</h2>
@@ -656,7 +656,7 @@ function PredictionEngine() {
           <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
         </section>
 
-        <div className="panel p-4 text-[11px] text-muted-foreground leading-relaxed">
+        <div className="panel text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the stochastic forecast path,
           HMM adds regime bias, entropy and Hurst regulate trust, GARCH defines the volatility cone,
           the neural layer refines next-return bias, and the SSL master-equation bound caps regime-driven excursions.

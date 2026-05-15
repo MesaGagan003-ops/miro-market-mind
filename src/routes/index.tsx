@@ -407,7 +407,7 @@ function PredictionEngine() {
       <DisclaimerModal />
       {/* Header */}
       <header className="border-b border-border backdrop-blur-md bg-background/70 sticky top-0 z-40">
-        <div className="max-w-[1280px] mx-auto px-3 py-3 flex items-center gap-4 flex-wrap">
+        <div className="container py-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <img src="/favicon.ico" alt="MIRO" className="w-9 h-9 rounded-full glow-primary object-cover border border-primary/40" />
             <div>
@@ -433,7 +433,7 @@ function PredictionEngine() {
             </div>
           </div>
         </div>
-        <div className="max-w-[1280px] mx-auto px-3 pb-3 flex items-center gap-3 flex-wrap">
+        <div className="container pb-3 flex items-center gap-3 flex-wrap">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Predict horizon →
           </span>
@@ -442,7 +442,7 @@ function PredictionEngine() {
       </header>
 
       {/* Main */}
-      <main className="max-w-[1280px] mx-auto px-3 py-4 space-y-2">
+      <main className="container py-4 space-y-2">
         <DisclaimerBanner />
 
         <TradingReadinessAlert

@@ -100,7 +100,11 @@
   html, body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-mono);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, var(--font-display), var(--font-mono);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "cv11";
   }
 
@@ -110,6 +114,76 @@
       radial-gradient(ellipse 60% 40% at 80% 110%, oklch(0.68 0.18 70 / 0.10), transparent);
     min-height: 100vh;
   }
+
+  /* Layout container for consistent content width */
+  .container {
+    width: 100%;
+    max-width: 1160px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Links */
+  a {
+    color: var(--color-primary-foreground);
+    text-decoration: none;
+    transition: color 180ms ease, opacity 180ms ease, transform 180ms ease;
+  }
+  a:hover { color: var(--primary); opacity: 0.95; transform: translateY(-1px); }
+
+  /* Buttons (utility class for components to use) */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: calc(var(--radius) - 2px);
+    background: transparent;
+    color: var(--color-foreground);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 180ms ease, background 180ms ease;
+    font-weight: 600;
+  }
+  .btn:active { transform: translateY(0.5px); }
+  .btn:focus { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent); }
+  .btn--primary {
+    background: var(--gradient-primary);
+    color: var(--primary-foreground);
+    border-color: transparent;
+    box-shadow: var(--shadow-glow);
+  }
+  .btn--ghost {
+    background: transparent;
+    border-color: rgba(255,255,255,0.04);
+  }
+
+  /* Form controls */
+  input, select, textarea {
+    background: var(--color-card);
+    color: var(--color-card-foreground);
+    border: 1px solid var(--color-border);
+    padding: 0.5rem 0.6rem;
+    border-radius: calc(var(--radius) - 2px);
+    transition: box-shadow 120ms ease, border-color 120ms ease;
+  }
+  input:focus, select:focus, textarea:focus { box-shadow: var(--shadow-quantum); border-color: var(--primary); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+    color: var(--color-foreground);
+  }
+  th, td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    text-align: left;
+  }
+  thead th { color: var(--muted-foreground); font-weight: 600; font-size: 0.95rem; }
 
   body::before {
     content: '';

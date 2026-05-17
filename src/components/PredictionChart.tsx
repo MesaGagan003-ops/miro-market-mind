@@ -117,7 +117,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
           {/* Actual price (CoinGecko-style filled area) */}
           <Area dataKey="actual" stroke="oklch(0.72 0.18 230)" strokeWidth={1.6} fill="url(#actualFill)" dot={false} connectNulls isAnimationActive={false} />
           {/* Prediction */}
-          <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={2} dot={{ fill: "oklch(0.65 0.24 25)", r: 2.5 }} connectNulls isAnimationActive={false} />
+          <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
         </ComposedChart>
       </div>
       <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground px-2 border-t border-border/40 pt-2">

@@ -120,26 +120,28 @@ export function fitArima211(prices: number[]): ArimaResult {
   const denom = 1 - best.phi1 - best.phi2;
   const driftPerStep = Math.abs(denom) > 1e-6 ? best.c / denom : best.c;
 
-  // Deterministic conditional-expectation forecast: E[ε_t | F_{t-1}] = 0.
-  // No injected gaussian shocks → no decorative wiggles. The path is the
-  // pure mathematical expectation of the ARIMA(2,1,1) recursion given the
-  // last observed differences and residual.
-  const forecast = (steps: number, lastPrice: number, _seed = 1) => {
-    void _seed;
-    void mulberry32; void gaussian;
+  // Stochastic forecast: inject gaussian shocks ε_t ~ N(0, σ_resid)
+  // into the ARIMA(2,1,1) recursion to generate a realistic path with
+  // volatility that matches historical residuals. The seed ensures the
+  // same random sequence during a minute's bar accumulation (stable line),
+  // changing only when a new bar closes.
+  const forecast = (steps: number, lastPrice: number, seed = 1) => {
+    const rng = mulberry32(seed);
     const out: number[] = [];
     let p = lastPrice;
     let prev1 = d[d.length - 1] ?? 0;
     let prev2 = d[d.length - 2] ?? 0;
     let prevE = resid[resid.length - 1] ?? 0;
     for (let i = 0; i < steps; i++) {
+      // Inject stochastic shock: ε_t ~ N(0, σ_resid)
+      const shock = gaussian(rng) * residualStd;
       const yPrime =
-        best.c + best.phi1 * prev1 + best.phi2 * prev2 + best.theta * prevE;
+        best.c + best.phi1 * prev1 + best.phi2 * prev2 + best.theta * prevE + shock;
       p += yPrime;
       out.push(p);
       prev2 = prev1;
       prev1 = yPrime;
-      prevE = 0; // E[ε] = 0 for all future steps
+      prevE = shock;
     }
     return out;
   };

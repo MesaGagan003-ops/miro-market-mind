@@ -10,26 +10,32 @@
 // and improves catastrophic-move recall.
 
 export interface JumpDiffusionResult {
-  lambda: number;        // jumps per step (Poisson rate)
-  pUp: number;           // P(jump is upward)
-  etaUp: number;         // up-jump tail decay (1/mean up jump magnitude)
-  etaDown: number;       // down-jump tail decay
-  jumpVar: number;       // variance contribution from jumps (log-return units)
-  diffusionVar: number;  // variance contribution from diffusion
-  jumpFraction: number;  // jumpVar / (jumpVar + diffusionVar)
+  lambda: number; // jumps per step (Poisson rate)
+  pUp: number; // P(jump is upward)
+  etaUp: number; // up-jump tail decay (1/mean up jump magnitude)
+  etaDown: number; // down-jump tail decay
+  jumpVar: number; // variance contribution from jumps (log-return units)
+  diffusionVar: number; // variance contribution from diffusion
+  jumpFraction: number; // jumpVar / (jumpVar + diffusionVar)
   recentJump: { t: number; size: number; direction: "up" | "down" } | null;
   expectedJumpDrift: number; // E[J-1] · λ — adds to drift
 }
 
-const JUMP_THRESHOLD_K = 3;   // |return| > k·σ ⇒ flagged as a jump
+const JUMP_THRESHOLD_K = 3; // |return| > k·σ ⇒ flagged as a jump
 
 export function fitJumpDiffusion(prices: number[]): JumpDiffusionResult {
   const n = prices.length;
   if (n < 30) {
     return {
-      lambda: 0, pUp: 0.5, etaUp: 50, etaDown: 50,
-      jumpVar: 0, diffusionVar: 1e-8, jumpFraction: 0,
-      recentJump: null, expectedJumpDrift: 0,
+      lambda: 0,
+      pUp: 0.5,
+      etaUp: 50,
+      etaDown: 50,
+      jumpVar: 0,
+      diffusionVar: 1e-8,
+      jumpFraction: 0,
+      recentJump: null,
+      expectedJumpDrift: 0,
     };
   }
   const r: number[] = [];
@@ -46,7 +52,8 @@ export function fitJumpDiffusion(prices: number[]): JumpDiffusionResult {
     const z = (r[i] - mean) / std;
     if (Math.abs(z) > JUMP_THRESHOLD_K) {
       jumps.push(r[i]);
-      if (r[i] > 0) ups.push(r[i]); else downs.push(-r[i]);
+      if (r[i] > 0) ups.push(r[i]);
+      else downs.push(-r[i]);
       // Track the latest jump (idx in the original prices array)
       if (i > r.length - 20) {
         recentJump = { t: i + 1, size: Math.abs(r[i]), direction: r[i] > 0 ? "up" : "down" };
@@ -69,8 +76,7 @@ export function fitJumpDiffusion(prices: number[]): JumpDiffusionResult {
 
   // Jump contribution to variance (Merton decomposition)
   // E[(log J)²] = pUp · 2/η_up² + (1-pUp) · 2/η_down²
-  const jumpSecondMoment =
-    pUp * (2 / (etaUp * etaUp)) + (1 - pUp) * (2 / (etaDown * etaDown));
+  const jumpSecondMoment = pUp * (2 / (etaUp * etaUp)) + (1 - pUp) * (2 / (etaDown * etaDown));
   const jumpVar = lambda * jumpSecondMoment;
   const diffusionVar = nonJumpVar;
   const jumpFraction = jumpVar / Math.max(1e-18, jumpVar + diffusionVar);
@@ -79,8 +85,14 @@ export function fitJumpDiffusion(prices: number[]): JumpDiffusionResult {
   const expectedJumpDrift = lambda * (pUp / etaUp - (1 - pUp) / etaDown);
 
   return {
-    lambda, pUp, etaUp, etaDown,
-    jumpVar, diffusionVar, jumpFraction,
-    recentJump, expectedJumpDrift,
+    lambda,
+    pUp,
+    etaUp,
+    etaDown,
+    jumpVar,
+    diffusionVar,
+    jumpFraction,
+    recentJump,
+    expectedJumpDrift,
   };
 }

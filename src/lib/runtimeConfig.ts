@@ -1,5 +1,5 @@
 // Runtime config is empty now - using only free data sources (Binance, CoinGecko, Yahoo Finance)
-export interface RuntimeConfig {}
+export type RuntimeConfig = Record<string, unknown>;
 
 const KEY = "miro.runtime.config.v1";
 

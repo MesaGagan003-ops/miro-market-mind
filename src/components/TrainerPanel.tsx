@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import {
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import type { MarketKind } from "@/lib/markets";
 
@@ -71,16 +79,18 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
     if (pts.length < 2) return 0;
     const first = pts[Math.max(0, pts.length - 10)];
     const last = pts[pts.length - 1];
-    return (last.arima + last.hmm + last.entropy) - (first.arima + first.hmm + first.entropy);
+    return last.arima + last.hmm + last.entropy - (first.arima + first.hmm + first.entropy);
   }, [pts]);
 
   return (
     <div className="panel p-4 space-y-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display font-semibold text-sm">Adaptive Trainer Panel</h3>
-        <span className="text-[10px] text-muted-foreground uppercase">{market} · {symbol} · {timeframe}</span>
+        <span className="text-[10px] text-muted-foreground uppercase">
+          {market} · {symbol} · {timeframe}
+        </span>
       </div>
-      
+
       <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
         <Stat label="Recent accuracy" value={`${(acc * 100).toFixed(1)}%`} />
         <Stat label="Recent Brier" value={brier.toFixed(3)} />
@@ -93,20 +103,58 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
         <div className="space-y-1">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Accuracy trend:</span>
-            <span className="font-bold" style={{ color: acc > 0.55 ? "hsl(142 76% 50%)" : acc > 0.50 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
-              {acc > 0.55 ? "✓ Good" : acc > 0.50 ? "~ Fair" : "✗ Poor"}
+            <span
+              className="font-bold"
+              style={{
+                color:
+                  acc > 0.55
+                    ? "hsl(142 76% 50%)"
+                    : acc > 0.5
+                      ? "hsl(50 85% 45%)"
+                      : "hsl(0 84% 60%)",
+              }}
+            >
+              {acc > 0.55 ? "✓ Good" : acc > 0.5 ? "~ Fair" : "✗ Poor"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Calibration (Brier):</span>
-            <span className="font-bold" style={{ color: brier < 0.2 ? "hsl(142 76% 50%)" : brier < 0.25 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
-              {brier < 0.2 ? "✓ Well-calibrated" : brier < 0.25 ? "~ Acceptable" : "✗ Needs refinement"}
+            <span
+              className="font-bold"
+              style={{
+                color:
+                  brier < 0.2
+                    ? "hsl(142 76% 50%)"
+                    : brier < 0.25
+                      ? "hsl(50 85% 45%)"
+                      : "hsl(0 84% 60%)",
+              }}
+            >
+              {brier < 0.2
+                ? "✓ Well-calibrated"
+                : brier < 0.25
+                  ? "~ Acceptable"
+                  : "✗ Needs refinement"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Model stability:</span>
-            <span className="font-bold" style={{ color: Math.abs(drift) < 0.05 ? "hsl(142 76% 50%)" : Math.abs(drift) < 0.1 ? "hsl(50 85% 45%)" : "hsl(0 84% 60%)" }}>
-              {Math.abs(drift) < 0.05 ? "✓ Stable" : Math.abs(drift) < 0.1 ? "~ Drifting" : "✗ Unstable"}
+            <span
+              className="font-bold"
+              style={{
+                color:
+                  Math.abs(drift) < 0.05
+                    ? "hsl(142 76% 50%)"
+                    : Math.abs(drift) < 0.1
+                      ? "hsl(50 85% 45%)"
+                      : "hsl(0 84% 60%)",
+              }}
+            >
+              {Math.abs(drift) < 0.05
+                ? "✓ Stable"
+                : Math.abs(drift) < 0.1
+                  ? "~ Drifting"
+                  : "✗ Unstable"}
             </span>
           </div>
         </div>
@@ -116,20 +164,56 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
       </div>
 
       <div className="h-[220px]">
-        <div style={{ width: "100%", height: "100%", overflow: "hidden", display: "flex", justifyContent: "center" }}>
-          <LineChart data={pts} width={980} height={220} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <LineChart
+            data={pts}
+            width={980}
+            height={220}
+            margin={{ left: 8, right: 8, top: 8, bottom: 0 }}
+          >
             <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
-            <XAxis dataKey="t" tickFormatter={(v) => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
+            <XAxis
+              dataKey="t"
+              tickFormatter={(v) =>
+                new Date(v).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })
+              }
+              tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+            />
             <YAxis tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} width={36} />
             <Tooltip labelFormatter={(v) => new Date(Number(v)).toLocaleString()} />
-            <Line type="monotone" dataKey="arima" stroke="var(--arima)" dot={false} strokeWidth={1.6} />
+            <Line
+              type="monotone"
+              dataKey="arima"
+              stroke="var(--arima)"
+              dot={false}
+              strokeWidth={1.6}
+            />
             <Line type="monotone" dataKey="hmm" stroke="var(--hmm)" dot={false} strokeWidth={1.6} />
-            <Line type="monotone" dataKey="entropy" stroke="var(--entropy)" dot={false} strokeWidth={1.8} />
+            <Line
+              type="monotone"
+              dataKey="entropy"
+              stroke="var(--entropy)"
+              dot={false}
+              strokeWidth={1.8}
+            />
           </LineChart>
-      </div>
+        </div>
       </div>
       <p className="text-[10px] text-muted-foreground mt-2">
-        Monitors how ARIMA/HMM/entropy weights adapt over time. Tracks model drift and recalibration.
+        Monitors how ARIMA/HMM/entropy weights adapt over time. Tracks model drift and
+        recalibration.
       </p>
     </div>
   );

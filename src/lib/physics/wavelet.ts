@@ -13,11 +13,11 @@
 // raw series produces a much more stable forecast on choppy markets.
 
 export interface WaveletResult {
-  trend: number[];                // smoothed series, same length as input
-  detailEnergy: number[];         // variance per scale [scale_1, scale_2, ...]
-  dominantScale: number;          // index of max-energy scale
+  trend: number[]; // smoothed series, same length as input
+  detailEnergy: number[]; // variance per scale [scale_1, scale_2, ...]
+  dominantScale: number; // index of max-energy scale
   smoothedDirection: "up" | "down" | "flat";
-  trendSlope: number;             // last-step slope of trend in % per step
+  trendSlope: number; // last-step slope of trend in % per step
 }
 
 // 1-D à trous (stationary) Haar transform — preserves time alignment so
@@ -70,7 +70,10 @@ export function waveletDecompose(prices: number[], maxScales = 4): WaveletResult
 
   // Trend slope: last 5 trend bars
   const k = Math.min(5, trend.length - 1);
-  const slope = k > 0 ? (trend[trend.length - 1] - trend[trend.length - 1 - k]) / (k * trend[trend.length - 1 - k]) : 0;
+  const slope =
+    k > 0
+      ? (trend[trend.length - 1] - trend[trend.length - 1 - k]) / (k * trend[trend.length - 1 - k])
+      : 0;
   const smoothedDirection: WaveletResult["smoothedDirection"] =
     Math.abs(slope) < 1e-5 ? "flat" : slope > 0 ? "up" : "down";
 

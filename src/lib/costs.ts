@@ -11,15 +11,15 @@
 import type { MarketKind } from "./markets";
 
 export interface CostModel {
-  feesBps: number;     // exchange + broker fees (round-trip)
+  feesBps: number; // exchange + broker fees (round-trip)
   slippageBps: number; // expected slippage per round-trip
 }
 
 export const DEFAULT_COSTS: Record<MarketKind, CostModel> = {
   crypto: { feesBps: 10, slippageBps: 2 },
-  nse:    { feesBps: 30, slippageBps: 5 },
-  bse:    { feesBps: 30, slippageBps: 5 },
-  forex:  { feesBps: 2,  slippageBps: 1 },
+  nse: { feesBps: 30, slippageBps: 5 },
+  bse: { feesBps: 30, slippageBps: 5 },
+  forex: { feesBps: 2, slippageBps: 1 },
 };
 
 export function totalCostBps(c: CostModel): number {
@@ -35,7 +35,7 @@ export function bpsToFrac(bps: number): number {
 export function tickSize(market: MarketKind, price: number): number {
   if (market === "crypto") {
     if (price >= 1000) return 0.01;
-    if (price >= 1)    return 0.0001;
+    if (price >= 1) return 0.0001;
     return 1e-6;
   }
   if (market === "nse" || market === "bse") return 0.05; // SEBI standard tick

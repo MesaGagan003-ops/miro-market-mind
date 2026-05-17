@@ -13,10 +13,10 @@
 //   so the projected path has realistic *wiggles* instead of a smooth line.
 
 export interface ArimaResult {
-  c: number;          // drift constant
-  phi: number;        // AR(1) coefficient (φ₁)
-  phi2: number;       // AR(2) coefficient (φ₂)
-  theta: number;      // MA(1) coefficient
+  c: number; // drift constant
+  phi: number; // AR(1) coefficient (φ₁)
+  phi2: number; // AR(2) coefficient (φ₂)
+  theta: number; // MA(1) coefficient
   residualStd: number;
   driftPerStep: number; // long-run expected change per step = c / (1 - φ₁ - φ₂)
   forecast: (steps: number, lastPrice: number, seed?: number) => number[];
@@ -25,7 +25,7 @@ export interface ArimaResult {
 function mulberry32(seed: number) {
   let t = seed >>> 0;
   return () => {
-    t = (t + 0x6D2B79F5) >>> 0;
+    t = (t + 0x6d2b79f5) >>> 0;
     let r = t;
     r = Math.imul(r ^ (r >>> 15), r | 1);
     r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
@@ -34,7 +34,8 @@ function mulberry32(seed: number) {
 }
 
 function gaussian(rng: () => number): number {
-  let u = 0, v = 0;
+  let u = 0,
+    v = 0;
   while (u === 0) u = rng();
   while (v === 0) v = rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
@@ -74,7 +75,12 @@ function scoreSSE(
 export function fitArima211(prices: number[]): ArimaResult {
   if (prices.length < 10) {
     return {
-      c: 0, phi: 0, phi2: 0, theta: 0, residualStd: 0, driftPerStep: 0,
+      c: 0,
+      phi: 0,
+      phi2: 0,
+      theta: 0,
+      residualStd: 0,
+      driftPerStep: 0,
       forecast: (steps, last) => Array(steps).fill(last),
     };
   }
@@ -113,9 +119,8 @@ export function fitArima211(prices: number[]): ArimaResult {
   }
 
   const { resid } = scoreSSE(d, best.c, best.phi1, best.phi2, best.theta);
-  const residualStd = Math.sqrt(
-    resid.reduce((a, b) => a + b * b, 0) / Math.max(1, resid.length),
-  ) || 1e-9;
+  const residualStd =
+    Math.sqrt(resid.reduce((a, b) => a + b * b, 0) / Math.max(1, resid.length)) || 1e-9;
 
   const denom = 1 - best.phi1 - best.phi2;
   const driftPerStep = Math.abs(denom) > 1e-6 ? best.c / denom : best.c;
@@ -135,8 +140,7 @@ export function fitArima211(prices: number[]): ArimaResult {
     for (let i = 0; i < steps; i++) {
       // Inject stochastic shock: ε_t ~ N(0, σ_resid)
       const shock = gaussian(rng) * residualStd;
-      const yPrime =
-        best.c + best.phi1 * prev1 + best.phi2 * prev2 + best.theta * prevE + shock;
+      const yPrime = best.c + best.phi1 * prev1 + best.phi2 * prev2 + best.theta * prevE + shock;
       p += yPrime;
       out.push(p);
       prev2 = prev1;

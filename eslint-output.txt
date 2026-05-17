@@ -1,0 +1,52 @@
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ComparisonPanel.tsx[24m[0m
+[0m  [2m202:6[22m   [33mwarning[39m  React Hook useEffect has a missing dependency: 'coin'. Either include it or remove the dependency array     [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m235:14[22m  [31merror[39m    Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong  [2m@typescript-eslint/no-non-null-asserted-optional-chain[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/DemoTrading.tsx[24m[0m
+[0m  [2m112:6[22m  [33mwarning[39m  React Hook useEffect has a missing dependency: 'currentPrice'. Either include it or remove the dependency array. If 'setEntry' needs the current value of 'currentPrice', you can also switch to useReducer instead of useState and read 'currentPrice' in the reducer  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/StrategicPlanPanel.tsx[24m[0m
+[0m  [2m141:29[22m  [31merror[39m    Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong                    [2m@typescript-eslint/no-non-null-asserted-optional-chain[22m[0m
+[0m  [2m179:6[22m   [33mwarning[39m  React Hook useMemo has a missing dependency: 'prediction.hybridConfidence'. Either include it or remove the dependency array  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/badge.tsx[24m[0m
+[0m  [2m32:17[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/button.tsx[24m[0m
+[0m  [2m49:18[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/form.tsx[24m[0m
+[0m  [2m163:3[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/navigation-menu.tsx[24m[0m
+[0m  [2m111:3[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/sidebar.tsx[24m[0m
+[0m  [2m743:3[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/components/ui/toggle.tsx[24m[0m
+[0m  [2m42:18[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/lib/learning.ts[24m[0m
+[0m  [2m57:33[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/lib/runtimeConfig.ts[24m[0m
+[0m  [2m2:18[22m  [31merror[39m  An empty interface declaration allows any non-nullish value, including literals like `0` and `""`.[0m
+[0m- If that's what you want, disable this lint rule with an inline comment or configure the 'allowInterfaces' rule option.[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead  [2m@typescript-eslint/no-empty-object-type[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/lib/stream.ts[24m[0m
+[0m   [2m56:17[22m  [31merror[39m  Empty block statement  [2mno-empty[22m[0m
+[0m  [2m102:17[22m  [31merror[39m  Empty block statement  [2mno-empty[22m[0m
+[0m  [2m166:17[22m  [31merror[39m  Empty block statement  [2mno-empty[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/router.tsx[24m[0m
+[0m  [2m4:10[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Move your component(s) to a separate file  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4m/workspaces/astro-market-mind/src/routes/index.tsx[24m[0m
+[0m  [2m468:6[22m  [33mwarning[39m  React Hook useEffect has missing dependencies: 'prediction' and 'ticks'. Either include them or remove the dependency array  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m[0m
+[0m[31m[1m✖ 18 problems (7 errors, 11 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

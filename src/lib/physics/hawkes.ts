@@ -12,10 +12,10 @@
 //   n < 0.2 ⇒ jumps are isolated, regime is calm.
 
 export interface HawkesResult {
-  mu: number;            // baseline intensity (jumps/step)
-  alpha: number;         // self-excitation strength
-  beta: number;          // decay rate
-  branching: number;     // n = α/β
+  mu: number; // baseline intensity (jumps/step)
+  alpha: number; // self-excitation strength
+  beta: number; // decay rate
+  branching: number; // n = α/β
   currentIntensity: number; // λ at the most recent step
   cascadeProbability: number; // P(another jump in next ~10 steps | current λ)
   isClusterRegime: boolean;
@@ -27,8 +27,13 @@ export function fitHawkes(prices: number[]): HawkesResult {
   const n = prices.length;
   if (n < 40) {
     return {
-      mu: 0.01, alpha: 0, beta: 1, branching: 0,
-      currentIntensity: 0.01, cascadeProbability: 0, isClusterRegime: false,
+      mu: 0.01,
+      alpha: 0,
+      beta: 1,
+      branching: 0,
+      currentIntensity: 0.01,
+      cascadeProbability: 0,
+      isClusterRegime: false,
     };
   }
   const r: number[] = [];
@@ -46,8 +51,13 @@ export function fitHawkes(prices: number[]): HawkesResult {
 
   if (jumpTimes.length < 3) {
     return {
-      mu: muHat, alpha: 0, beta: 1, branching: 0,
-      currentIntensity: muHat, cascadeProbability: 0, isClusterRegime: false,
+      mu: muHat,
+      alpha: 0,
+      beta: 1,
+      branching: 0,
+      currentIntensity: muHat,
+      cascadeProbability: 0,
+      isClusterRegime: false,
     };
   }
 
@@ -66,7 +76,10 @@ export function fitHawkes(prices: number[]): HawkesResult {
           R_i = (R_i + 1) * Math.exp(-beta * dt);
         }
         const lam = muHat + alpha * R_i;
-        if (lam <= 0) { valid = false; break; }
+        if (lam <= 0) {
+          valid = false;
+          break;
+        }
         ll += Math.log(lam);
       }
       if (!valid) continue;
@@ -98,7 +111,12 @@ export function fitHawkes(prices: number[]): HawkesResult {
   const isClusterRegime = branching > 0.4 && currentIntensity > muHat * 1.5;
 
   return {
-    mu: muHat, alpha: best.alpha, beta: best.beta, branching,
-    currentIntensity, cascadeProbability, isClusterRegime,
+    mu: muHat,
+    alpha: best.alpha,
+    beta: best.beta,
+    branching,
+    currentIntensity,
+    cascadeProbability,
+    isClusterRegime,
   };
 }

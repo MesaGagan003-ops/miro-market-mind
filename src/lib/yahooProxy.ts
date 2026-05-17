@@ -99,7 +99,9 @@ export const fetchYahooHistory = createServerFn({ method: "GET" })
       }
 
       if (lastError) {
-        console.warn(`[fetchYahooHistory] ${data.symbol} ${data.interval}/${data.range}: ${lastError}`);
+        console.warn(
+          `[fetchYahooHistory] ${data.symbol} ${data.interval}/${data.range}: ${lastError}`,
+        );
       }
       return [] as YahooPoint[];
     })();

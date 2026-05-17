@@ -10,9 +10,9 @@
 // We bin returns into {down, flat, up} and estimate probabilities by counting.
 
 export interface TransferEntropyResult {
-  selfTE: number;          // info flow from short-scale → long-scale of same asset
-  crossTE: number | null;  // X → Y if a leader series is supplied
-  selfDirection: number;   // signed: + means short-scale predicts UP next, - DOWN
+  selfTE: number; // info flow from short-scale → long-scale of same asset
+  crossTE: number | null; // X → Y if a leader series is supplied
+  selfDirection: number; // signed: + means short-scale predicts UP next, - DOWN
   significance: "low" | "medium" | "high"; // heuristic strength label
 }
 
@@ -22,10 +22,7 @@ function binReturn(r: number, eps: number): 0 | 1 | 2 {
   return 1;
 }
 
-function teFromSequences(
-  source: (0 | 1 | 2)[],
-  target: (0 | 1 | 2)[],
-): number {
+function teFromSequences(source: (0 | 1 | 2)[], target: (0 | 1 | 2)[]): number {
   // T(source → target): how much source_t reduces uncertainty about target_{t+1}
   // beyond what target_t already tells us.
   if (source.length !== target.length || target.length < 20) return 0;
@@ -94,15 +91,13 @@ export function transferEntropy(
   let crossTE: number | null = null;
   if (leaderPrices && leaderPrices.length >= 40) {
     const lr: number[] = [];
-    for (let i = 1; i < leaderPrices.length; i++) lr.push(Math.log(leaderPrices[i] / leaderPrices[i - 1]));
+    for (let i = 1; i < leaderPrices.length; i++)
+      lr.push(Math.log(leaderPrices[i] / leaderPrices[i - 1]));
     const lstd = Math.sqrt(lr.reduce((a, b) => a + b * b, 0) / lr.length) || 1e-9;
     const leps = lstd * 0.4;
     const leaderBin = lr.map((x) => binReturn(x, leps));
     const minLen = Math.min(leaderBin.length, short.length);
-    crossTE = teFromSequences(
-      leaderBin.slice(-minLen) as (0 | 1 | 2)[],
-      short.slice(-minLen),
-    );
+    crossTE = teFromSequences(leaderBin.slice(-minLen) as (0 | 1 | 2)[], short.slice(-minLen));
   }
 
   const significance: TransferEntropyResult["significance"] =

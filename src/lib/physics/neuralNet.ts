@@ -7,10 +7,10 @@
 // roughly [-1, +1] (clipped) that the hybrid scales by σ.
 
 export interface NeuralNetworkResult {
-  forecast: number[];      // predicted return for next N steps (decayed)
-  confidence: number;      // [0, 1] sign-accuracy on a recent holdout window
-  activation: number[];    // last output for debugging
-  loss: number;            // final MSE
+  forecast: number[]; // predicted return for next N steps (decayed)
+  confidence: number; // [0, 1] sign-accuracy on a recent holdout window
+  activation: number[]; // last output for debugging
+  loss: number; // final MSE
 }
 
 const ARCH = [8, 16, 8, 1] as const;
@@ -20,7 +20,7 @@ const MAX_EPOCHS_DEFAULT = 12;
 
 interface Net {
   W: number[][][]; // W[l][j][i]
-  b: number[][];   // b[l][j]
+  b: number[][]; // b[l][j]
   vW: number[][][];
   vb: number[][];
 }
@@ -117,7 +117,11 @@ function backprop(net: Net, x: number[], y: number): number {
   return err * err;
 }
 
-function buildFeatures(returns: number[], vol: number[], feats: number[]): { X: number[][]; y: number[] } {
+function buildFeatures(
+  returns: number[],
+  vol: number[],
+  feats: number[],
+): { X: number[][]; y: number[] } {
   const X: number[][] = [];
   const y: number[] = [];
   for (let t = 4; t < returns.length - 1; t++) {

@@ -72,7 +72,8 @@ export function macd(values: number[], fast = 12, slow = 26, signal = 9) {
   const ef = ema(values, fast);
   const es = ema(values, slow);
   const line = values.map((_, i) => {
-    const a = ef[i], b = es[i];
+    const a = ef[i],
+      b = es[i];
     return a !== undefined && b !== undefined ? a - b : undefined;
   });
   const lineFilled = line.map((v) => v ?? 0);
@@ -81,7 +82,8 @@ export function macd(values: number[], fast = 12, slow = 26, signal = 9) {
     macd: line,
     signal: line.map((_, i) => (line[i] === undefined ? undefined : sig[i])),
     hist: line.map((_, i) => {
-      const m = line[i], s = sig[i];
+      const m = line[i],
+        s = sig[i];
       return m !== undefined && s !== undefined ? m - s : undefined;
     }),
   };
@@ -92,7 +94,10 @@ export function macd(values: number[], fast = 12, slow = 26, signal = 9) {
 // every provider, so we use a session-anchored rolling mean weighted by
 // |Δprice| as a flow proxy. This is the standard fallback used in
 // retail charting libraries when volume is unavailable.
-export function vwapProxy(values: number[], window = 60): {
+export function vwapProxy(
+  values: number[],
+  window = 60,
+): {
   vwap: (number | undefined)[];
   upper: (number | undefined)[];
   lower: (number | undefined)[];
@@ -104,7 +109,9 @@ export function vwapProxy(values: number[], window = 60): {
   const z: (number | undefined)[] = new Array(values.length).fill(undefined);
   for (let i = 0; i < values.length; i++) {
     const start = Math.max(0, i - window + 1);
-    let wSum = 0, pwSum = 0, sq = 0;
+    let wSum = 0,
+      pwSum = 0,
+      sq = 0;
     for (let j = start; j <= i; j++) {
       const w = j === 0 ? 1 : Math.abs(values[j] - values[j - 1]) + 1e-9;
       wSum += w;
@@ -178,7 +185,8 @@ export function fibonacciRetracement(values: number[], lookback = 120): Fibonacc
   const level618 = high - range * 0.618;
   const level786 = high - range * 0.786;
   const level100 = high;
-  const supportBias = last >= level618 ? 0.35 : last >= level500 ? 0.18 : last <= level382 ? -0.28 : 0;
+  const supportBias =
+    last >= level618 ? 0.35 : last >= level500 ? 0.18 : last <= level382 ? -0.28 : 0;
   const extensionBias = position > 0.8 ? 0.15 : position < 0.2 ? -0.15 : 0;
   return {
     high,
@@ -192,19 +200,28 @@ export function fibonacciRetracement(values: number[], lookback = 120): Fibonacc
 
 // ---------- combined feature extraction for the hybrid model ----------
 export interface IndicatorFeatures {
-  vwapZ: number;          // current price's z-score vs rolling VWAP — mean-revert signal
-  emaSlopeFast: number;   // EMA(20) slope per bar — trend velocity
-  emaSlopeSlow: number;   // EMA(50) slope per bar — regime velocity
-  macdHist: number;       // MACD histogram (momentum)
-  superTrendDir: 1 | -1;   // current supertrend direction
-  fibPosition: number;     // retracement position in [0, 1]
-  fibBias: number;         // Fibonacci support/resistance bias
-  bias: number;           // [-1, 1] consolidated directional bias for hybrid
+  vwapZ: number; // current price's z-score vs rolling VWAP — mean-revert signal
+  emaSlopeFast: number; // EMA(20) slope per bar — trend velocity
+  emaSlopeSlow: number; // EMA(50) slope per bar — regime velocity
+  macdHist: number; // MACD histogram (momentum)
+  superTrendDir: 1 | -1; // current supertrend direction
+  fibPosition: number; // retracement position in [0, 1]
+  fibBias: number; // Fibonacci support/resistance bias
+  bias: number; // [-1, 1] consolidated directional bias for hybrid
 }
 
 export function extractFeatures(prices: number[]): IndicatorFeatures {
   if (prices.length < 30) {
-    return { vwapZ: 0, emaSlopeFast: 0, emaSlopeSlow: 0, macdHist: 0, superTrendDir: 1, fibPosition: 0.5, fibBias: 0, bias: 0 };
+    return {
+      vwapZ: 0,
+      emaSlopeFast: 0,
+      emaSlopeSlow: 0,
+      macdHist: 0,
+      superTrendDir: 1,
+      fibPosition: 0.5,
+      fibBias: 0,
+      bias: 0,
+    };
   }
   const { z } = vwapProxy(prices, Math.min(60, prices.length));
   const vwapZ = z[z.length - 1] ?? 0;
@@ -221,7 +238,8 @@ export function extractFeatures(prices: number[]): IndicatorFeatures {
   // price. This is the only way the same bias formula works for BTC ($100k)
   // AND for PEPE ($0.000012) — magic multipliers like *5000 saturate tanh
   // immediately for low-priced coins and produce zero signal.
-  let absRetSum = 0, n = 0;
+  let absRetSum = 0,
+    n = 0;
   for (let i = Math.max(1, prices.length - 30); i < prices.length; i++) {
     absRetSum += Math.abs(Math.log(prices[i] / prices[i - 1]));
     n++;
@@ -231,7 +249,7 @@ export function extractFeatures(prices: number[]): IndicatorFeatures {
   // Scaling by retScale gives "slopes per σ-of-return" which is dimensionless.
   const sFastZ = sFast / retScale;
   const sSlowZ = sSlow / retScale;
-  const macdZ = (macdHist / last) / retScale;
+  const macdZ = macdHist / last / retScale;
   const meanRevert = -Math.tanh(vwapZ / 2.5) * 0.35;
   const trend = Math.tanh(0.6 * sFastZ + 0.4 * sSlowZ) * 0.45;
   const momentum = Math.tanh(macdZ * 0.5) * 0.25;
@@ -239,5 +257,14 @@ export function extractFeatures(prices: number[]): IndicatorFeatures {
   const superTrendBias = superTrendDir === 1 ? 0.12 : -0.12;
   const fibBias = fib.bias * 0.22;
   const bias = Math.max(-1, Math.min(1, meanRevert + trend + momentum + superTrendBias + fibBias));
-  return { vwapZ, emaSlopeFast: sFast, emaSlopeSlow: sSlow, macdHist, superTrendDir, fibPosition: fib.position, fibBias: fib.bias, bias };
+  return {
+    vwapZ,
+    emaSlopeFast: sFast,
+    emaSlopeSlow: sSlow,
+    macdHist,
+    superTrendDir,
+    fibPosition: fib.position,
+    fibBias: fib.bias,
+    bias,
+  };
 }

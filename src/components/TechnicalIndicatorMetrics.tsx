@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { HybridResult } from "@/lib/physics/hybrid";
+import type { IndicatorFeatures } from "@/lib/physics/indicators";
 import { Card } from "@/components/ui/card";
 
 interface Props {
@@ -12,7 +13,7 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
   const metrics = useMemo(() => {
     if (!prediction || recentPrices.length < 20) return null;
 
-    const indicators: any = prediction.indicators || {};
+    const indicators: Partial<IndicatorFeatures> = prediction.indicators || {};
 
     // Safety: provide defaults for all indicator properties
     const rsi = indicators.rsi ?? 50;
@@ -49,7 +50,8 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
 
     // ATR normalized (volatility indicator)
     const atrPercent = (atr / currentPrice) * 100;
-    const atrLevel = atrPercent > 2 ? "HIGH VOLATILITY" : atrPercent < 0.5 ? "LOW VOLATILITY" : "NORMAL";
+    const atrLevel =
+      atrPercent > 2 ? "HIGH VOLATILITY" : atrPercent < 0.5 ? "LOW VOLATILITY" : "NORMAL";
 
     // Moving averages confluence
     const sma50Above = currentPrice > sma50 ? "ABOVE" : "BELOW";
@@ -63,7 +65,8 @@ export function TechnicalIndicatorMetrics({ prediction, currentPrice, recentPric
 
     // ADX trend strength
     const adxStrength = adx > 25 ? "STRONG TREND" : adx > 20 ? "MODERATE TREND" : "WEAK TREND";
-    const adxColor = adx > 25 ? "text-bull" : adx > 20 ? "text-foreground" : "text-muted-foreground";
+    const adxColor =
+      adx > 25 ? "text-bull" : adx > 20 ? "text-foreground" : "text-muted-foreground";
 
     // CCI interpretation
     const cciLevel = cci > 100 ? "EXTREME_UP" : cci < -100 ? "EXTREME_DOWN" : "NORMAL";

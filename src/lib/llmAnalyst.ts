@@ -14,7 +14,7 @@ interface AnalystInput {
 }
 
 export interface AnalystOutput {
-  bias: number;       // -1..1
+  bias: number; // -1..1
   confidence: number; // 0..1
   rationale: string;
 }
@@ -25,7 +25,10 @@ export const llmAnalyst = createServerFn({ method: "POST" })
     const key = data.apiKey || process.env.LOVABLE_API_KEY;
     if (!key) return { bias: 0, confidence: 0, rationale: "LLM key missing" };
 
-    const news = data.newsTitles.slice(0, 8).map((t, i) => `${i + 1}. ${t}`).join("\n");
+    const news = data.newsTitles
+      .slice(0, 8)
+      .map((t, i) => `${i + 1}. ${t}`)
+      .join("\n");
     const prompt = `Market: ${data.market.toUpperCase()} ${data.symbol}
 Spot: ${data.spotPrice}
 Recent return: ${data.recentReturnPct.toFixed(2)}%
@@ -42,36 +45,45 @@ Based on the news + price action, output a JSON directional bias for the next sh
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: "You are a quantitative market analyst. Be neutral and concise. Output via the tool." },
+            {
+              role: "system",
+              content:
+                "You are a quantitative market analyst. Be neutral and concise. Output via the tool.",
+            },
             { role: "user", content: prompt },
           ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "directional_bias",
-              description: "Return directional bias for the symbol",
-              parameters: {
-                type: "object",
-                properties: {
-                  bias: { type: "number", description: "-1 strong bearish .. 1 strong bullish" },
-                  confidence: { type: "number", description: "0..1 confidence in bias" },
-                  rationale: { type: "string", description: "1-sentence reason" },
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "directional_bias",
+                description: "Return directional bias for the symbol",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    bias: { type: "number", description: "-1 strong bearish .. 1 strong bullish" },
+                    confidence: { type: "number", description: "0..1 confidence in bias" },
+                    rationale: { type: "string", description: "1-sentence reason" },
+                  },
+                  required: ["bias", "confidence", "rationale"],
+                  additionalProperties: false,
                 },
-                required: ["bias", "confidence", "rationale"],
-                additionalProperties: false,
               },
             },
-          }],
+          ],
           tool_choice: { type: "function", function: { name: "directional_bias" } },
         }),
       });
       if (!res.ok) {
         if (res.status === 429) return { bias: 0, confidence: 0, rationale: "Rate limit" };
-        if (res.status === 402) return { bias: 0, confidence: 0, rationale: "AI credits exhausted" };
+        if (res.status === 402)
+          return { bias: 0, confidence: 0, rationale: "AI credits exhausted" };
         return { bias: 0, confidence: 0, rationale: `AI error ${res.status}` };
       }
-      const j = await res.json() as {
-        choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }> } }>;
+      const j = (await res.json()) as {
+        choices?: Array<{
+          message?: { tool_calls?: Array<{ function?: { arguments?: string } }> };
+        }>;
       };
       const args = j.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
       if (!args) return { bias: 0, confidence: 0, rationale: "no tool call" };

@@ -11,14 +11,14 @@
 // This is the core upgrade from "single forecast path" to "full distribution".
 
 export interface FokkerPlanckBand {
-  level: number;   // 0.5, 0.7, 0.9
+  level: number; // 0.5, 0.7, 0.9
   upper: number;
   lower: number;
 }
 
 export interface FokkerPlanckResult {
-  bins: number[];           // price grid (length M)
-  pdf: number[];            // probability mass per bin at horizon (sums to 1)
+  bins: number[]; // price grid (length M)
+  pdf: number[]; // probability mass per bin at horizon (sums to 1)
   mean: number;
   median: number;
   mode: number;
@@ -28,8 +28,8 @@ export interface FokkerPlanckResult {
 
 export function fokkerPlanckEvolve(
   spot: number,
-  mu: number,        // drift per step (log-return units)
-  sigma: number,     // diffusion per step (log-return units)
+  mu: number, // drift per step (log-return units)
+  sigma: number, // diffusion per step (log-return units)
   steps: number,
   bins = 121,
 ): FokkerPlanckResult {
@@ -48,7 +48,7 @@ export function fokkerPlanckEvolve(
   // Evolve via explicit scheme with substep count chosen to satisfy CFL
   // stability: dt_sub · sigma² / dx² ≤ 0.4
   const sigma2 = sigma * sigma;
-  const cflLimit = 0.4 * dx * dx / Math.max(1e-18, sigma2);
+  const cflLimit = (0.4 * dx * dx) / Math.max(1e-18, sigma2);
   const subSteps = Math.max(1, Math.ceil(steps / cflLimit));
   const dt = steps / subSteps;
   const D = 0.5 * sigma2 * dt;
@@ -62,11 +62,9 @@ export function fokkerPlanckEvolve(
       const right = i < bins - 1 ? p[i + 1] : 0;
       const center = p[i];
       // Diffusion (central)
-      const diff = D * (left - 2 * center + right) / (dx * dx);
+      const diff = (D * (left - 2 * center + right)) / (dx * dx);
       // Drift (upwind)
-      const adv = v >= 0
-        ? -v * (center - left) / dx
-        : -v * (right - center) / dx;
+      const adv = v >= 0 ? (-v * (center - left)) / dx : (-v * (right - center)) / dx;
       next[i] = center + diff + adv;
       if (next[i] < 0) next[i] = 0; // numerical floor
     }

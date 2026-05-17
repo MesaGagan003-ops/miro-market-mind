@@ -7,7 +7,13 @@ function parsePair(input: unknown): {
   mode: "auto" | "free" | "premium";
   premiumApiKey: string;
 } {
-  const i = (input ?? {}) as { base?: string; quote?: string; limit?: number; mode?: "auto" | "free" | "premium"; premiumApiKey?: string };
+  const i = (input ?? {}) as {
+    base?: string;
+    quote?: string;
+    limit?: number;
+    mode?: "auto" | "free" | "premium";
+    premiumApiKey?: string;
+  };
   return {
     base: String(i.base ?? "EUR").toUpperCase(),
     quote: String(i.quote ?? "USD").toUpperCase(),
@@ -36,7 +42,11 @@ async function fetchPremiumHistory(base: string, quote: string, limit: number, a
   const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1min&outputsize=${Math.min(5000, Math.max(20, limit))}&apikey=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, { headers: { "User-Agent": "MIRO/1.0" } });
   if (!res.ok) throw new Error(`Premium history ${res.status}`);
-  const j = (await res.json()) as { values?: Array<{ datetime?: string; close?: string }>; status?: string; message?: string };
+  const j = (await res.json()) as {
+    values?: Array<{ datetime?: string; close?: string }>;
+    status?: string;
+    message?: string;
+  };
   if (j.status === "error") throw new Error(String(j.message || "premium error"));
   const rows = (j.values ?? [])
     .map((v) => ({ ts: new Date(String(v.datetime ?? "")).getTime(), price: Number(v.close) }))
@@ -51,7 +61,11 @@ export const fetchForexPrice = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     if (data.mode !== "free") {
       try {
-        return await fetchPremiumLatest(data.base, data.quote, data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "");
+        return await fetchPremiumLatest(
+          data.base,
+          data.quote,
+          data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "",
+        );
       } catch (e) {
         if (data.mode === "premium") throw e;
       }
@@ -75,7 +89,12 @@ export const fetchForexHistory = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     if (data.mode !== "free") {
       try {
-        const p = await fetchPremiumHistory(data.base, data.quote, data.limit, data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "");
+        const p = await fetchPremiumHistory(
+          data.base,
+          data.quote,
+          data.limit,
+          data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "",
+        );
         if (p.rows.length > 0) return p.rows;
       } catch (e) {
         if (data.mode === "premium") throw e;
@@ -83,7 +102,9 @@ export const fetchForexHistory = createServerFn({ method: "GET" })
     }
 
     const end = new Date();
-    const start = new Date(end.getTime() - Math.max(1, Math.ceil(data.limit / 24)) * 24 * 3600 * 1000);
+    const start = new Date(
+      end.getTime() - Math.max(1, Math.ceil(data.limit / 24)) * 24 * 3600 * 1000,
+    );
     const s = start.toISOString().slice(0, 10);
     const e = end.toISOString().slice(0, 10);
 

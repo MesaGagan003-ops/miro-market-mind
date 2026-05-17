@@ -30,7 +30,10 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "MIRO — Physics-based Market Prediction Engine" },
-      { name: "description", content: "Adaptive physics market prediction across crypto, NSE/BSE." },
+      {
+        name: "description",
+        content: "Adaptive physics market prediction across crypto, NSE/BSE.",
+      },
       { name: "author", content: "MIRO" },
       { property: "og:title", content: "MIRO" },
       { property: "og:description", content: "Adaptive physics market prediction." },
@@ -38,9 +41,7 @@ export const Route = createRootRoute({
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
     ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,

@@ -8,8 +8,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  ComposedChart, Line, Area, XAxis, YAxis,
-  ReferenceLine, Tooltip, CartesianGrid,
+  ComposedChart,
+  Line,
+  Area,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+  Tooltip,
+  CartesianGrid,
 } from "recharts";
 import type { MarketAsset } from "@/lib/markets";
 import type { HybridResult } from "@/lib/physics/hybrid";
@@ -45,21 +51,27 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
       })
       .finally(() => !cancelled && setLoading(false));
     // refresh every 5 minutes
-    const id = setInterval(() => {
-      fetchCoinNews({ data: { symbol: sym, market: coin.market } })
-        .then((r) => !cancelled && setSentiment(buildSentiment(r.items)))
-        .catch(() => {});
-    }, 5 * 60 * 1000);
+    const id = setInterval(
+      () => {
+        fetchCoinNews({ data: { symbol: sym, market: coin.market } })
+          .then((r) => !cancelled && setSentiment(buildSentiment(r.items)))
+          .catch(() => {});
+      },
+      5 * 60 * 1000,
+    );
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [coin.id, coin.symbol, coin.market]);
 
-  const tone =
-    !sentiment ? "neutral" :
-    sentiment.meanSentiment > 0.1 ? "bullish" :
-    sentiment.meanSentiment < -0.1 ? "bearish" : "neutral";
+  const tone = !sentiment
+    ? "neutral"
+    : sentiment.meanSentiment > 0.1
+      ? "bullish"
+      : sentiment.meanSentiment < -0.1
+        ? "bearish"
+        : "neutral";
 
   const toneColor =
     tone === "bullish" ? "var(--bull)" : tone === "bearish" ? "var(--bear)" : "var(--foreground)";
@@ -71,8 +83,7 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 className="font-display font-semibold text-foreground">
-              News-Adjusted Forecast{" "}
-              <span className="text-muted-foreground">·</span>{" "}
+              News-Adjusted Forecast <span className="text-muted-foreground">·</span>{" "}
               <span style={{ color: toneColor }}>{tone}</span>
             </h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -116,18 +127,28 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
       {/* News list */}
       <div className="panel p-4 flex flex-col">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-display font-semibold text-foreground">
-            {coin.name} News
-          </h3>
+          <h3 className="font-display font-semibold text-foreground">{coin.name} News</h3>
           {sentiment && (
             <div className="flex items-center gap-2 text-[10px]">
-              <span className="px-1.5 py-0.5 rounded" style={{ background: "color-mix(in oklab, var(--bull) 20%, transparent)", color: "var(--bull)" }}>
+              <span
+                className="px-1.5 py-0.5 rounded"
+                style={{
+                  background: "color-mix(in oklab, var(--bull) 20%, transparent)",
+                  color: "var(--bull)",
+                }}
+              >
                 ▲ {sentiment.bullishCount}
               </span>
               <span className="px-1.5 py-0.5 rounded text-muted-foreground bg-muted/30">
                 ● {sentiment.neutralCount}
               </span>
-              <span className="px-1.5 py-0.5 rounded" style={{ background: "color-mix(in oklab, var(--bear) 20%, transparent)", color: "var(--bear)" }}>
+              <span
+                className="px-1.5 py-0.5 rounded"
+                style={{
+                  background: "color-mix(in oklab, var(--bear) 20%, transparent)",
+                  color: "var(--bear)",
+                }}
+              >
                 ▼ {sentiment.bearishCount}
               </span>
             </div>
@@ -137,7 +158,9 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
           {loading && <div className="text-xs text-muted-foreground">Loading news…</div>}
           {err && <div className="text-xs text-destructive">News fetch failed: {err}</div>}
           {sentiment && sentiment.items.length === 0 && !loading && (
-            <div className="text-xs text-muted-foreground">No recent headlines for {coin.symbol.toUpperCase()}.</div>
+            <div className="text-xs text-muted-foreground">
+              No recent headlines for {coin.symbol.toUpperCase()}.
+            </div>
           )}
           {sentiment?.items.map((it) => (
             <a
@@ -152,8 +175,11 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
                   className="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
                   style={{
                     background:
-                      it.sentiment > 0.15 ? "var(--bull)" :
-                      it.sentiment < -0.15 ? "var(--bear)" : "var(--muted-foreground)",
+                      it.sentiment > 0.15
+                        ? "var(--bull)"
+                        : it.sentiment < -0.15
+                          ? "var(--bear)"
+                          : "var(--muted-foreground)",
                   }}
                 />
                 <div className="flex-1 min-w-0">
@@ -164,11 +190,19 @@ export function NewsPanel({ coin, prediction, currentPrice, history, minutesPerS
                     <span>{it.source}</span>
                     <span>·</span>
                     <span>{relTime(it.publishedAt)}</span>
-                    <span className="ml-auto font-mono" style={{
-                      color: it.sentiment > 0.15 ? "var(--bull)" :
-                             it.sentiment < -0.15 ? "var(--bear)" : "var(--muted-foreground)",
-                    }}>
-                      {it.sentiment >= 0 ? "+" : ""}{(it.sentiment * 100).toFixed(0)}
+                    <span
+                      className="ml-auto font-mono"
+                      style={{
+                        color:
+                          it.sentiment > 0.15
+                            ? "var(--bull)"
+                            : it.sentiment < -0.15
+                              ? "var(--bear)"
+                              : "var(--muted-foreground)",
+                      }}
+                    >
+                      {it.sentiment >= 0 ? "+" : ""}
+                      {(it.sentiment * 100).toFixed(0)}
                     </span>
                   </div>
                 </div>
@@ -210,12 +244,18 @@ interface ChartProps {
   sentiment: NewsSentiment;
 }
 
-function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sentiment }: ChartProps) {
+function SentimentChart({
+  history,
+  prediction,
+  currentPrice,
+  minutesPerStep,
+  sentiment,
+}: ChartProps) {
   const histPoints = history.map((h) => ({ t: h.ts, actual: h.price }));
   const lastTs = history.length > 0 ? history[history.length - 1].ts : Date.now();
   const stepMs = minutesPerStep * 60 * 1000;
   const N = prediction.forecast.length;
-  const sigma = prediction.garch.sigma || (currentPrice * 0.001);
+  const sigma = prediction.garch.sigma || currentPrice * 0.001;
 
   // Sentiment tilt magnitude — scaled by confidence so weak/contradictory news
   // doesn't move the line much. Max tilt at the horizon = ±1.2σ·√N.
@@ -231,10 +271,17 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
     };
   });
 
-  const bridge = { t: lastTs, actual: currentPrice, predicted: currentPrice, adjusted: currentPrice };
+  const bridge = {
+    t: lastTs,
+    actual: currentPrice,
+    predicted: currentPrice,
+    adjusted: currentPrice,
+  };
   const data = [...histPoints, bridge, ...futurePoints];
 
-  const allVals = data.flatMap((d: any) => [d.actual, d.predicted, d.adjusted].filter((v) => typeof v === "number"));
+  const allVals = data.flatMap((d: { actual?: number; predicted?: number; adjusted?: number }) =>
+    [d.actual, d.predicted, d.adjusted].filter((v) => typeof v === "number"),
+  );
   const min = Math.min(...allVals);
   const max = Math.max(...allVals);
   const pad = (max - min) * 0.06 || max * 0.001;
@@ -242,8 +289,21 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
   const tEnd = data[data.length - 1]?.t ?? lastTs;
 
   return (
-    <div style={{ width: "100%", height: 320, overflow: "auto", display: "flex", justifyContent: "center" }}>
-      <ComposedChart data={data} width={980} height={320} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
+    <div
+      style={{
+        width: "100%",
+        height: 320,
+        overflow: "auto",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      <ComposedChart
+        data={data}
+        width={980}
+        height={320}
+        margin={{ top: 12, right: 16, bottom: 8, left: 8 }}
+      >
         <defs>
           <linearGradient id="actualFill2" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
@@ -252,7 +312,9 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
         </defs>
         <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.25} vertical={false} />
         <XAxis
-          dataKey="t" type="number" scale="time"
+          dataKey="t"
+          type="number"
+          scale="time"
           domain={[tStart, tEnd]}
           tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
           stroke="oklch(0.28 0.04 265)"
@@ -264,22 +326,61 @@ function SentimentChart({ history, prediction, currentPrice, minutesPerStep, sen
           tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
           stroke="oklch(0.28 0.04 265)"
           tickFormatter={(v) => formatPrice(v)}
-          width={70} orientation="right"
+          width={70}
+          orientation="right"
         />
         <Tooltip
           contentStyle={{
             background: "oklch(0.17 0.03 265)",
             border: "1px solid oklch(0.28 0.04 265)",
-            borderRadius: 8, fontSize: 12,
+            borderRadius: 8,
+            fontSize: 12,
           }}
-          labelFormatter={(v: any) => new Date(v).toLocaleString()}
-          formatter={(value: any, name: any) => [typeof value === "number" ? formatPrice(value) : String(value), String(name)]}
+          labelFormatter={(v: number) => new Date(v).toLocaleString()}
+          formatter={(value: number | string, name: string) => [
+            typeof value === "number" ? formatPrice(value) : String(value),
+            String(name),
+          ]}
         />
-        <ReferenceLine x={lastTs} stroke="oklch(0.65 0.03 255)" strokeDasharray="2 4" strokeOpacity={0.5} label={{ value: "now", position: "top", fill: "oklch(0.65 0.03 255)", fontSize: 10 }} />
-        <ReferenceLine y={currentPrice} stroke="oklch(0.72 0.18 230)" strokeDasharray="3 3" strokeOpacity={0.4} />
-        <Area dataKey="actual" stroke="oklch(0.72 0.18 230)" strokeWidth={1.6} fill="url(#actualFill2)" dot={false} connectNulls isAnimationActive={false} />
-        <Line dataKey="predicted" stroke="oklch(0.65 0.24 25)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls isAnimationActive={false} />
-        <Line dataKey="adjusted" stroke={sentiment.meanSentiment >= 0 ? "oklch(0.78 0.18 145)" : "oklch(0.65 0.24 25)"} strokeWidth={2.2} dot={false} connectNulls isAnimationActive={false} />
+        <ReferenceLine
+          x={lastTs}
+          stroke="oklch(0.65 0.03 255)"
+          strokeDasharray="2 4"
+          strokeOpacity={0.5}
+          label={{ value: "now", position: "top", fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+        />
+        <ReferenceLine
+          y={currentPrice}
+          stroke="oklch(0.72 0.18 230)"
+          strokeDasharray="3 3"
+          strokeOpacity={0.4}
+        />
+        <Area
+          dataKey="actual"
+          stroke="oklch(0.72 0.18 230)"
+          strokeWidth={1.6}
+          fill="url(#actualFill2)"
+          dot={false}
+          connectNulls
+          isAnimationActive={false}
+        />
+        <Line
+          dataKey="predicted"
+          stroke="oklch(0.65 0.24 25)"
+          strokeWidth={1.5}
+          strokeDasharray="4 3"
+          dot={false}
+          connectNulls
+          isAnimationActive={false}
+        />
+        <Line
+          dataKey="adjusted"
+          stroke={sentiment.meanSentiment >= 0 ? "oklch(0.78 0.18 145)" : "oklch(0.65 0.24 25)"}
+          strokeWidth={2.2}
+          dot={false}
+          connectNulls
+          isAnimationActive={false}
+        />
       </ComposedChart>
     </div>
   );
@@ -295,8 +396,10 @@ function formatPrice(v: number): string {
 function formatTime(ts: number, spanMs: number): string {
   const d = new Date(ts);
   const spanH = spanMs / 3_600_000;
-  if (spanH < 6) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-  if (spanH < 48) return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+  if (spanH < 6)
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (spanH < 48)
+    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
   if (spanH < 24 * 14) return d.toLocaleDateString([], { month: "short", day: "numeric" });
   return d.toLocaleDateString([], { month: "short", year: "2-digit" });
 }

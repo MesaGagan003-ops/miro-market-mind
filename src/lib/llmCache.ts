@@ -7,21 +7,21 @@
 import { llmAnalyst, type AnalystOutput } from "./llmAnalyst";
 
 interface CacheEntry {
-  fetchedAt: number;       // ms
-  bias: number;            // raw (un-decayed) bias from LLM
+  fetchedAt: number; // ms
+  bias: number; // raw (un-decayed) bias from LLM
   confidence: number;
   rationale: string;
 }
 
-const TTL_MS = 10 * 60 * 1000;  // 10 minutes hard refresh
+const TTL_MS = 10 * 60 * 1000; // 10 minutes hard refresh
 const HALF_LIFE_MS = 8 * 60 * 1000; // bias halves every 8 minutes
 const cache = new Map<string, CacheEntry>();
 
 const keyOf = (market: string, symbol: string) => `${market}::${symbol}`;
 
 export interface DecayedSignal {
-  bias: number;        // post-decay
-  confidence: number;  // post-decay
+  bias: number; // post-decay
+  confidence: number; // post-decay
   rationale: string;
   ageSeconds: number;
   cached: boolean;
@@ -43,7 +43,12 @@ export async function getDecayedLlmSignal(input: {
   if (!entry || now - entry.fetchedAt > TTL_MS) {
     try {
       const fresh: AnalystOutput = await llmAnalyst({ data: input });
-      entry = { fetchedAt: now, bias: fresh.bias, confidence: fresh.confidence, rationale: fresh.rationale };
+      entry = {
+        fetchedAt: now,
+        bias: fresh.bias,
+        confidence: fresh.confidence,
+        rationale: fresh.rationale,
+      };
       cache.set(k, entry);
     } catch {
       if (!entry) {

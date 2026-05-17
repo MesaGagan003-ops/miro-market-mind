@@ -16,14 +16,22 @@ export interface Tick {
 
 export type TickHandler = (tick: Tick) => void;
 export type ProviderState = "live" | "fallback" | "failing";
-export type ProviderStatusHandler = (status: { provider: string; state: ProviderState; detail?: string }) => void;
+export type ProviderStatusHandler = (status: {
+  provider: string;
+  state: ProviderState;
+  detail?: string;
+}) => void;
 
 interface StreamOptions {
   runtimeConfig?: RuntimeConfig;
   onStatus?: ProviderStatusHandler;
 }
 
-export function subscribeBinance(symbol: string, onTick: TickHandler, opts?: StreamOptions): () => void {
+export function subscribeBinance(
+  symbol: string,
+  onTick: TickHandler,
+  opts?: StreamOptions,
+): () => void {
   let stopped = false;
   let lastPrice = 0;
   const poll = async () => {
@@ -40,8 +48,14 @@ export function subscribeBinance(symbol: string, onTick: TickHandler, opts?: Str
       } catch (e) {
         // Surface provider status so UI can display the failure
         try {
-          opts?.onStatus?.({ provider: "binance", state: "failing", detail: String((e as Error)?.message ?? e) });
-        } catch {}
+          opts?.onStatus?.({
+            provider: "binance",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
+        } catch (err) {
+          console.debug("[subscribeBinance] onStatus handler failed", err);
+        }
         console.error("[subscribeBinance] error", e);
       }
       await new Promise((r) => setTimeout(r, 1500));
@@ -55,7 +69,11 @@ export function subscribeBinance(symbol: string, onTick: TickHandler, opts?: Str
 
 const YAHOO_POLL_MS = 30_000;
 
-export function subscribeCoinGecko(coinId: string, onTick: TickHandler, opts?: StreamOptions): () => void {
+export function subscribeCoinGecko(
+  coinId: string,
+  onTick: TickHandler,
+  opts?: StreamOptions,
+): () => void {
   let stopped = false;
   const poll = async () => {
     while (!stopped) {
@@ -64,7 +82,11 @@ export function subscribeCoinGecko(coinId: string, onTick: TickHandler, opts?: S
           `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_last_updated_at=true`,
         );
         if (!res.ok) {
-          opts?.onStatus?.({ provider: "coingecko", state: "failing", detail: `status ${res.status}` });
+          opts?.onStatus?.({
+            provider: "coingecko",
+            state: "failing",
+            detail: `status ${res.status}`,
+          });
         }
         const data = await res.json();
         const entry = data[coinId];
@@ -74,8 +96,14 @@ export function subscribeCoinGecko(coinId: string, onTick: TickHandler, opts?: S
         }
       } catch (e) {
         try {
-          opts?.onStatus?.({ provider: "coingecko", state: "failing", detail: String((e as Error)?.message ?? e) });
-        } catch {}
+          opts?.onStatus?.({
+            provider: "coingecko",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
+        } catch (err) {
+          console.debug("[subscribeCoinGecko] onStatus handler failed", err);
+        }
         console.error("[subscribeCoinGecko] error", e);
       }
       await new Promise((r) => setTimeout(r, 5000));
@@ -134,8 +162,14 @@ function subscribeYahoo(symbol: string, onTick: TickHandler, opts?: StreamOption
         }
       } catch (e) {
         try {
-          opts?.onStatus?.({ provider: "yahoo", state: "failing", detail: String((e as Error)?.message ?? e) });
-        } catch {}
+          opts?.onStatus?.({
+            provider: "yahoo",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
+        } catch (err) {
+          console.debug("[subscribeYahoo] onStatus handler failed", err);
+        }
         console.error("[subscribeYahoo] error", e);
       }
       await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
@@ -147,7 +181,11 @@ function subscribeYahoo(symbol: string, onTick: TickHandler, opts?: StreamOption
   };
 }
 
-export function subscribeAsset(asset: MarketAsset, onTick: TickHandler, opts?: StreamOptions): () => void {
+export function subscribeAsset(
+  asset: MarketAsset,
+  onTick: TickHandler,
+  opts?: StreamOptions,
+): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
     if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts);
@@ -161,13 +199,22 @@ export function subscribeAsset(asset: MarketAsset, onTick: TickHandler, opts?: S
     const poll = async () => {
       while (!stopped) {
         try {
-          const t = await fetchForexPrice({ data: { base, quote, mode: "free", premiumApiKey: "" } });
+          const t = await fetchForexPrice({
+            data: { base, quote, mode: "free", premiumApiKey: "" },
+          });
           if (t.price > 0) {
             onTick(t);
-            opts?.onStatus?.({ provider: `forex:${(t as { provider?: string }).provider ?? "frankfurter"}`, state: "live" });
+            opts?.onStatus?.({
+              provider: `forex:${(t as { provider?: string }).provider ?? "frankfurter"}`,
+              state: "live",
+            });
           }
         } catch (e) {
-          opts?.onStatus?.({ provider: "forex", state: "failing", detail: String((e as Error)?.message ?? e) });
+          opts?.onStatus?.({
+            provider: "forex",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
@@ -199,9 +246,17 @@ export function subscribeAsset(asset: MarketAsset, onTick: TickHandler, opts?: S
   return () => {};
 }
 
-export async function fetchAssetHistory(asset: MarketAsset, limit = 240, opts?: StreamOptions): Promise<Tick[]> {
+export async function fetchAssetHistory(
+  asset: MarketAsset,
+  limit = 240,
+  opts?: StreamOptions,
+): Promise<Tick[]> {
   if (asset.market === "crypto") {
-    opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live", detail: "history" });
+    opts?.onStatus?.({
+      provider: asset.binanceSymbol ? "binance" : "coingecko",
+      state: "live",
+      detail: "history",
+    });
     if (asset.binanceSymbol) return fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
     return fetchCoinGeckoHistory(asset.id, 1);
   }
@@ -210,11 +265,17 @@ export async function fetchAssetHistory(asset: MarketAsset, limit = 240, opts?: 
     const base = asset.forexBase ?? "EUR";
     const quote = asset.forexQuote ?? "USD";
     try {
-      const rows = await fetchForexHistory({ data: { base, quote, limit, mode: "free", premiumApiKey: "" } });
+      const rows = await fetchForexHistory({
+        data: { base, quote, limit, mode: "free", premiumApiKey: "" },
+      });
       opts?.onStatus?.({ provider: "forex-history", state: "live" });
       return rows;
     } catch (e) {
-      opts?.onStatus?.({ provider: "forex-history", state: "failing", detail: String((e as Error)?.message ?? e) });
+      opts?.onStatus?.({
+        provider: "forex-history",
+        state: "failing",
+        detail: String((e as Error)?.message ?? e),
+      });
       return [];
     }
   }
@@ -235,7 +296,9 @@ export async function fetchAssetHistory(asset: MarketAsset, limit = 240, opts?: 
     detail: "history (free delayed)",
   });
   try {
-    return await fetchYahooHistory({ data: { symbol: asset.yahooSymbol, interval: "1m", range: "1d" } });
+    return await fetchYahooHistory({
+      data: { symbol: asset.yahooSymbol, interval: "1m", range: "1d" },
+    });
   } catch (e) {
     opts?.onStatus?.({
       provider: `${exchange}:yahoo`,

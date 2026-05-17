@@ -64,13 +64,25 @@ function PredictionEngine() {
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES[2]); // 10m default
   const [ticks, setTicks] = useState<Tick[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
-  const [stats, setStats] = useState<AccuracyStats>(() => computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
+  const [stats, setStats] = useState<AccuracyStats>(() =>
+    computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id),
+  );
   const [providerHealth, setProviderHealth] = useState<Record<string, ProviderHealthItem>>({});
   const [yahooTrain, setYahooTrain] = useState<number[]>([]);
   const [deepHistory, setDeepHistory] = useState<number[]>([]);
   const [adaptive, setAdaptive] = useState<AdaptiveWeights | null>(null);
-  const [llmSignal, setLlmSignal] = useState<{ bias: number; confidence: number; rationale: string }>({ bias: 0, confidence: 0, rationale: "" });
-  const [dataQuality, setDataQuality] = useState<DataQualityScore>({ score: 0, isGappy: true, isSparse: true, isFresh: false, detail: "Initializing" });
+  const [llmSignal, setLlmSignal] = useState<{
+    bias: number;
+    confidence: number;
+    rationale: string;
+  }>({ bias: 0, confidence: 0, rationale: "" });
+  const [dataQuality, setDataQuality] = useState<DataQualityScore>({
+    score: 0,
+    isGappy: true,
+    isSparse: true,
+    isFresh: false,
+    detail: "Initializing",
+  });
   const [isReadyToTrade, setIsReadyToTrade] = useState(false);
   const [regimeHistory, setRegimeHistory] = useState<RegimeHistoryEntry[]>([]);
   const lastRecordRef = useRef<number>(0);
@@ -127,33 +139,37 @@ function PredictionEngine() {
       lastFlush = Date.now();
       setCurrentPrice(t.price);
       setTicks((prev) => {
-         const last = prev[prev.length - 1];
-         if (last) {
-           const lastBucket = Math.floor(last.ts / 60000);
-           const nextBucket = Math.floor(t.ts / 60000);
-           if (lastBucket === nextBucket) {
-             if (last.price === t.price && last.ts === t.ts) return prev;
-             const next = prev.slice();
-             next[next.length - 1] = { ...last, ts: t.ts, price: t.price };
-             return next;
-           }
-         }
-         const next = prev.length >= historyCap ? prev.slice(-(historyCap - 1)) : prev.slice();
-         next.push(t);
-         return next;
+        const last = prev[prev.length - 1];
+        if (last) {
+          const lastBucket = Math.floor(last.ts / 60000);
+          const nextBucket = Math.floor(t.ts / 60000);
+          if (lastBucket === nextBucket) {
+            if (last.price === t.price && last.ts === t.ts) return prev;
+            const next = prev.slice();
+            next[next.length - 1] = { ...last, ts: t.ts, price: t.price };
+            return next;
+          }
+        }
+        const next = prev.length >= historyCap ? prev.slice(-(historyCap - 1)) : prev.slice();
+        next.push(t);
+        return next;
       });
     };
 
-    const unsub = subscribeAsset(coin, (t) => {
-      pending = t;
-      const now = Date.now();
-      const since = now - lastFlush;
-      if (since >= 1000) {
-        flush();
-      } else if (!flushTimer) {
-        flushTimer = setTimeout(flush, 1000 - since);
-      }
-    }, { onStatus });
+    const unsub = subscribeAsset(
+      coin,
+      (t) => {
+        pending = t;
+        const now = Date.now();
+        const since = now - lastFlush;
+        if (since >= 1000) {
+          flush();
+        } else if (!flushTimer) {
+          flushTimer = setTimeout(flush, 1000 - since);
+        }
+      },
+      { onStatus },
+    );
 
     return () => {
       cancelled = true;
@@ -178,7 +194,11 @@ function PredictionEngine() {
       });
       if (cancelled) return;
       setYahooTrain(rows.map((r) => r.price).slice(-300));
-      onStatus({ provider: "yfinance", state: rows.length > 0 ? "live" : "failing", detail: rows.length > 0 ? "history" : "empty" });
+      onStatus({
+        provider: "yfinance",
+        state: rows.length > 0 ? "live" : "failing",
+        detail: rows.length > 0 ? "history" : "empty",
+      });
     };
     void loadYahoo();
     const id = setInterval(loadYahoo, 5 * 60 * 1000);
@@ -272,13 +292,27 @@ function PredictionEngine() {
       if (!currentPrice || modelSeries.length < 10) return;
       const cached = peekDecayedSignal(coin.market, coin.id);
       if (cached && cached.confidence > 0.08) {
-        if (!cancelled) setLlmSignal({ bias: cached.bias, confidence: cached.confidence, rationale: cached.rationale });
+        if (!cancelled)
+          setLlmSignal({
+            bias: cached.bias,
+            confidence: cached.confidence,
+            rationale: cached.rationale,
+          });
         return;
       }
       try {
-        const recentReturnPct = ((modelSeries[modelSeries.length - 1] - modelSeries[Math.max(0, modelSeries.length - 6)]) / Math.max(1e-9, modelSeries[Math.max(0, modelSeries.length - 6)])) * 100;
-        const news = await fetchCoinNews({ data: { symbol: coin.symbol.toUpperCase(), market: coin.market } });
-        const titles = (news.items ?? []).slice(0, 8).map((item: any) => item.title).filter(Boolean);
+        const recentReturnPct =
+          ((modelSeries[modelSeries.length - 1] -
+            modelSeries[Math.max(0, modelSeries.length - 6)]) /
+            Math.max(1e-9, modelSeries[Math.max(0, modelSeries.length - 6)])) *
+          100;
+        const news = await fetchCoinNews({
+          data: { symbol: coin.symbol.toUpperCase(), market: coin.market },
+        });
+        const titles = (news.items ?? [])
+          .slice(0, 8)
+          .map((item: { title?: string }) => item.title)
+          .filter(Boolean);
         const llm = await getDecayedLlmSignal({
           market: coin.market,
           symbol: coin.id,
@@ -349,13 +383,26 @@ function PredictionEngine() {
     });
     return pred;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minuteBuckets, latestModelPrice, latestModelDelta, timeframe.id, adaptive, dataQualityMemo.score, coin.market, llmSignal.bias, llmSignal.confidence, deepHistory.length]);
+  }, [
+    minuteBuckets,
+    latestModelPrice,
+    latestModelDelta,
+    timeframe.id,
+    adaptive,
+    dataQualityMemo.score,
+    coin.market,
+    llmSignal.bias,
+    llmSignal.confidence,
+    deepHistory.length,
+  ]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
   // hydration mismatch ("Model accuracy too low: X% vs 0.0%") and avoid
   // double-renders during long sessions.
   useEffect(() => {
-    setIsReadyToTrade(isReadyForTrading(dataQualityMemo, stats.accuracy, stats.brier, adaptive?.samples ?? 0));
+    setIsReadyToTrade(
+      isReadyForTrading(dataQualityMemo, stats.accuracy, stats.brier, adaptive?.samples ?? 0),
+    );
   }, [dataQualityMemo, stats.accuracy, stats.brier, adaptive?.samples]);
 
   // Record predictions periodically + resolve old ones (local + cloud learning)
@@ -418,10 +465,13 @@ function PredictionEngine() {
 
       return [...prev.slice(-11), { state: currentState, startedAt: observedAt }];
     });
-  }, [prediction?.hmm.dominantState, ticks.length]);
+  }, [prediction, ticks]);
 
   const minutesPerStep = Math.max(1, timeframe.minutes / Math.min(timeframe.minutes, 200));
-  const healthItems = useMemo(() => Object.values(providerHealth).sort((a, b) => a.provider.localeCompare(b.provider)), [providerHealth]);
+  const healthItems = useMemo(
+    () => Object.values(providerHealth).sort((a, b) => a.provider.localeCompare(b.provider)),
+    [providerHealth],
+  );
 
   return (
     <div className="min-h-screen relative z-10">
@@ -429,7 +479,11 @@ function PredictionEngine() {
       <header className="border-b border-border backdrop-blur-md bg-background/70 sticky top-0 z-40">
         <div className="container py-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <img src="/favicon.ico" alt="MIRO" className="w-9 h-9 rounded-full glow-primary object-cover border border-primary/40" />
+            <img
+              src="/favicon.ico"
+              alt="MIRO"
+              className="w-9 h-9 rounded-full glow-primary object-cover border border-primary/40"
+            />
             <div>
               <h1 className="font-display font-bold text-lg leading-none text-gradient-primary">
                 MIRO
@@ -482,7 +536,9 @@ function PredictionEngine() {
         <section className="space-y-3">
           <div>
             <h2 className="font-display font-semibold text-foreground">Market Workspace</h2>
-            <p className="text-[11px] text-muted-foreground">A clean, ordered layout for the live market view and supporting analysis panels.</p>
+            <p className="text-[11px] text-muted-foreground">
+              A clean, ordered layout for the live market view and supporting analysis panels.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
@@ -493,7 +549,9 @@ function PredictionEngine() {
                 action={
                   prediction ? (
                     <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Final {timeframe.label}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Final {timeframe.label}
+                      </div>
                       <div
                         className="text-xl font-display font-bold"
                         style={{
@@ -508,7 +566,13 @@ function PredictionEngine() {
                         ${formatLive(prediction.finalPrice)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        Δ {currentPrice > 0 ? ((prediction.finalPrice - currentPrice) / currentPrice * 100).toFixed(2) : "0.00"}%
+                        Δ{" "}
+                        {currentPrice > 0
+                          ? (((prediction.finalPrice - currentPrice) / currentPrice) * 100).toFixed(
+                              2,
+                            )
+                          : "0.00"}
+                        %
                       </div>
                     </div>
                   ) : null
@@ -564,7 +628,9 @@ function PredictionEngine() {
                     llmSignal={llmSignal}
                   />
                 ) : (
-                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">Strategic recommendation appears once the first forecast is ready.</div>
+                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">
+                    Strategic recommendation appears once the first forecast is ready.
+                  </div>
                 )}
 
                 {prediction ? (
@@ -574,20 +640,31 @@ function PredictionEngine() {
                     confidence={prediction.hybridConfidence}
                   />
                 ) : (
-                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">Awaiting first prediction…</div>
+                  <div className="text-sm text-muted-foreground rounded border border-border/60 bg-card/20 p-3">
+                    Awaiting first prediction…
+                  </div>
                 )}
 
                 <div className="rounded border border-border/60 bg-card/20 p-3">
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">News Sentiment</h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    News Sentiment
+                  </h3>
                   <div className="text-[11px] leading-relaxed text-muted-foreground">
                     {llmSignal.rationale ? (
                       <div>
-                        <div className="mb-2 font-semibold text-foreground">{llmSignal.rationale}</div>
+                        <div className="mb-2 font-semibold text-foreground">
+                          {llmSignal.rationale}
+                        </div>
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
-                            <div className="h-full bg-primary" style={{ width: `${llmSignal.confidence * 100}%` }} />
+                            <div
+                              className="h-full bg-primary"
+                              style={{ width: `${llmSignal.confidence * 100}%` }}
+                            />
                           </div>
-                          <span className="font-semibold text-foreground">{(llmSignal.confidence * 100).toFixed(0)}%</span>
+                          <span className="font-semibold text-foreground">
+                            {(llmSignal.confidence * 100).toFixed(0)}%
+                          </span>
                         </div>
                       </div>
                     ) : (
@@ -597,7 +674,9 @@ function PredictionEngine() {
                 </div>
 
                 <div className="rounded border border-border/60 bg-card/20 p-3 text-[11px] text-muted-foreground">
-                  <div className="mb-1 uppercase tracking-wider font-semibold text-foreground">Training corpus</div>
+                  <div className="mb-1 uppercase tracking-wider font-semibold text-foreground">
+                    Training corpus
+                  </div>
                   {deepHistory.length > 0
                     ? `${deepHistory.length} daily bars feeding deep-history drift bias for ${coin.market.toUpperCase()} · ${coin.symbol}`
                     : "Loading multi-year history…"}
@@ -612,7 +691,10 @@ function PredictionEngine() {
               />
               {prediction ? (
                 <div className="space-y-4">
-                  <IndicatorOverlayPanel history={ticks.map((t) => ({ ts: t.ts, price: t.price }))} prediction={prediction} />
+                  <IndicatorOverlayPanel
+                    history={ticks.map((t) => ({ ts: t.ts, price: t.price }))}
+                    prediction={prediction}
+                  />
                   <TechnicalIndicatorMetrics
                     prediction={prediction}
                     currentPrice={currentPrice}
@@ -620,7 +702,9 @@ function PredictionEngine() {
                   />
                 </div>
               ) : (
-                <div className="rounded border border-border/60 bg-card/20 p-3 text-sm text-muted-foreground">Technical metrics will appear after the first forecast.</div>
+                <div className="rounded border border-border/60 bg-card/20 p-3 text-sm text-muted-foreground">
+                  Technical metrics will appear after the first forecast.
+                </div>
               )}
             </div>
 
@@ -647,7 +731,12 @@ function PredictionEngine() {
                   title="Model Diagnostics"
                   description="Detailed physics and statistical internals behind the active forecast"
                 />
-                <ModelPanels result={prediction} currentPrice={currentPrice} minutes={timeframe.minutes} regimeHistory={regimeHistory} />
+                <ModelPanels
+                  result={prediction}
+                  currentPrice={currentPrice}
+                  minutes={timeframe.minutes}
+                  regimeHistory={regimeHistory}
+                />
               </div>
             )}
 
@@ -656,15 +745,21 @@ function PredictionEngine() {
                 title="Paper Trading Sandbox"
                 description="Optional execution simulator placed below the core analysis workflow"
               />
-              <DemoTrading coin={coin} currentPrice={currentPrice} prediction={prediction} recentPrices={modelSeries} />
+              <DemoTrading
+                coin={coin}
+                currentPrice={currentPrice}
+                prediction={prediction}
+                recentPrices={modelSeries}
+              />
             </div>
           </div>
         </section>
 
         <div className="panel text-[11px] text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the stochastic forecast path,
-          HMM adds regime bias, entropy and Hurst regulate trust, GARCH defines the volatility cone,
-          the neural layer refines next-return bias, and the SSL master-equation bound caps regime-driven excursions.
+          <strong className="text-foreground">Model note:</strong> ARIMA(2,1,1) provides the
+          stochastic forecast path, HMM adds regime bias, entropy and Hurst regulate trust, GARCH
+          defines the volatility cone, the neural layer refines next-return bias, and the SSL
+          master-equation bound caps regime-driven excursions.
         </div>
 
         <DisclaimerFooter />
@@ -705,7 +800,9 @@ function DashboardCardHeader({
     <div className="mb-4 flex items-start justify-between gap-3 border-b border-border/60 pb-3">
       <div>
         <h3 className="font-display text-sm font-semibold text-foreground">{title}</h3>
-        {description ? <p className="mt-1 text-[11px] text-muted-foreground">{description}</p> : null}
+        {description ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">{description}</p>
+        ) : null}
       </div>
       {action ? <div>{action}</div> : null}
     </div>

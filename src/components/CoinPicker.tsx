@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadAllAssets, FEATURED_ASSETS, marketLabel, assetDisplaySymbol, type MarketAsset } from "@/lib/markets";
+import {
+  loadAllAssets,
+  FEATURED_ASSETS,
+  marketLabel,
+  assetDisplaySymbol,
+  type MarketAsset,
+} from "@/lib/markets";
 
 interface Props {
   value: MarketAsset;
@@ -54,17 +60,25 @@ export function CoinPicker({ value, onChange }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={loaded ? `Search ${coins.length.toLocaleString()} coins…` : "Loading coin list…"}
+            placeholder={
+              loaded ? `Search ${coins.length.toLocaleString()} coins…` : "Loading coin list…"
+            }
             className="w-full px-3 py-2 bg-input border-b border-border text-sm outline-none focus:border-primary"
           />
           <div className="overflow-y-auto flex-1">
             {filtered.map((c) => (
               <button
                 key={c.id}
-                onClick={() => { onChange(c); setOpen(false); setQuery(""); }}
+                onClick={() => {
+                  onChange(c);
+                  setOpen(false);
+                  setQuery("");
+                }}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary text-left text-sm border-b border-border/40"
               >
-                <span className="font-mono font-semibold w-24 text-foreground text-xs">{assetDisplaySymbol(c)}</span>
+                <span className="font-mono font-semibold w-24 text-foreground text-xs">
+                  {assetDisplaySymbol(c)}
+                </span>
                 <span className="text-muted-foreground truncate flex-1">{c.name}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                   {marketLabel(c.market)}
@@ -72,7 +86,9 @@ export function CoinPicker({ value, onChange }: Props) {
               </button>
             ))}
             {filtered.length === 0 && (
-              <div className="p-4 text-sm text-muted-foreground text-center">No coins match "{query}"</div>
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                No coins match "{query}"
+              </div>
             )}
           </div>
         </div>

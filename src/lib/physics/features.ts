@@ -4,7 +4,7 @@
 // These feed into the hybrid model as drift / trust modulators.
 
 export interface HurstResult {
-  H: number;          // 0.5 = random walk, >0.5 trending, <0.5 mean-reverting
+  H: number; // 0.5 = random walk, >0.5 trending, <0.5 mean-reverting
   regime: "trending" | "mean_reverting" | "random";
 }
 
@@ -29,7 +29,8 @@ export function hurstExponent(prices: number[], maxLag = 20): HurstResult {
   const n = lags.length;
   const mx = lags.reduce((a, b) => a + b, 0) / n;
   const my = tau.reduce((a, b) => a + b, 0) / n;
-  let num = 0, den = 0;
+  let num = 0,
+    den = 0;
   for (let i = 0; i < n; i++) {
     num += (lags[i] - mx) * (tau[i] - my);
     den += (lags[i] - mx) * (lags[i] - mx);
@@ -41,9 +42,9 @@ export function hurstExponent(prices: number[], maxLag = 20): HurstResult {
 }
 
 export interface HamiltonianResult {
-  H: number;        // total energy
-  KE: number;       // kinetic (recent velocity²)
-  PE: number;       // potential (squared deviation from MA)
+  H: number; // total energy
+  KE: number; // kinetic (recent velocity²)
+  PE: number; // potential (squared deviation from MA)
   velocity: number; // signed recent drift
   direction: "up" | "down";
 }

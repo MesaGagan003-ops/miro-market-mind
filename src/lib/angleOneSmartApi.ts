@@ -185,11 +185,15 @@ export const fetchSmartApiHistory = createServerFn({ method: "GET" })
       });
       if (!res.ok) throw new Error(`SmartAPI history ${res.status}`);
 
-      const j = (await res.json()) as { data?: Array<[string, string, string, string, string, string]> };
-      const rows = (j.data ?? []).map((c) => ({
-        ts: new Date(c[0]).getTime(),
-        price: Number(c[4]),
-      })).filter((x) => Number.isFinite(x.price) && x.price > 0);
+      const j = (await res.json()) as {
+        data?: Array<[string, string, string, string, string, string]>;
+      };
+      const rows = (j.data ?? [])
+        .map((c) => ({
+          ts: new Date(c[0]).getTime(),
+          price: Number(c[4]),
+        }))
+        .filter((x) => Number.isFinite(x.price) && x.price > 0);
 
       if (rows.length === 0) return [] as Array<{ ts: number; price: number }>;
       return rows.slice(-data.limit);
@@ -198,41 +202,73 @@ export const fetchSmartApiHistory = createServerFn({ method: "GET" })
     }
   });
 
-export const fetchSmartInstrumentMaster = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
-    try {
-      const res = await fetch(url, { headers: { "User-Agent": "MIRO/1.0" } });
-      if (!res.ok) return [] as Array<{ id: string; symbol: string; name: string; market: "nse" | "bse"; smartExchange: "NSE" | "BSE"; smartToken: string; smartTradingSymbol: string; yahooSymbol: string }>;
-      const arr = (await res.json()) as SmartInstrumentMasterRow[];
-      const out: Array<{ id: string; symbol: string; name: string; market: "nse" | "bse"; smartExchange: "NSE" | "BSE"; smartToken: string; smartTradingSymbol: string; yahooSymbol: string }> = [];
-      for (const row of arr) {
-        const exch = row.exch_seg === "BSE" ? "BSE" : row.exch_seg === "NSE" ? "NSE" : "";
-        if (!exch) continue;
-        const tradingSymbol = String(row.symbol ?? "").trim();
-        const token = String(row.token ?? "").trim();
-        const name = String(row.name ?? tradingSymbol).trim();
-        if (!tradingSymbol || !token) continue;
-        const isEq = tradingSymbol.endsWith("-EQ") || String(row.instrumenttype ?? "").toUpperCase().includes("EQ");
-        if (!isEq) continue;
-        const clean = tradingSymbol.replace(/-EQ$/i, "");
-        const market = exch === "NSE" ? "nse" : "bse";
-        out.push({
-          id: `${market}-${clean.toLowerCase()}`,
-          symbol: clean,
-          name: `${name} (${exch})`,
-          market,
-          smartExchange: exch,
-          smartToken: token,
-          smartTradingSymbol: clean,
-          yahooSymbol: `${clean}.${exch === "NSE" ? "NS" : "BO"}`,
-        });
-      }
-      // dedupe by exchange+symbol
-      const map = new Map<string, (typeof out)[number]>();
-      for (const x of out) map.set(`${x.smartExchange}:${x.symbol}`, x);
-      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [] as Array<{ id: string; symbol: string; name: string; market: "nse" | "bse"; smartExchange: "NSE" | "BSE"; smartToken: string; smartTradingSymbol: string; yahooSymbol: string }>;
+export const fetchSmartInstrumentMaster = createServerFn({ method: "GET" }).handler(async () => {
+  const url =
+    "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "MIRO/1.0" } });
+    if (!res.ok)
+      return [] as Array<{
+        id: string;
+        symbol: string;
+        name: string;
+        market: "nse" | "bse";
+        smartExchange: "NSE" | "BSE";
+        smartToken: string;
+        smartTradingSymbol: string;
+        yahooSymbol: string;
+      }>;
+    const arr = (await res.json()) as SmartInstrumentMasterRow[];
+    const out: Array<{
+      id: string;
+      symbol: string;
+      name: string;
+      market: "nse" | "bse";
+      smartExchange: "NSE" | "BSE";
+      smartToken: string;
+      smartTradingSymbol: string;
+      yahooSymbol: string;
+    }> = [];
+    for (const row of arr) {
+      const exch = row.exch_seg === "BSE" ? "BSE" : row.exch_seg === "NSE" ? "NSE" : "";
+      if (!exch) continue;
+      const tradingSymbol = String(row.symbol ?? "").trim();
+      const token = String(row.token ?? "").trim();
+      const name = String(row.name ?? tradingSymbol).trim();
+      if (!tradingSymbol || !token) continue;
+      const isEq =
+        tradingSymbol.endsWith("-EQ") ||
+        String(row.instrumenttype ?? "")
+          .toUpperCase()
+          .includes("EQ");
+      if (!isEq) continue;
+      const clean = tradingSymbol.replace(/-EQ$/i, "");
+      const market = exch === "NSE" ? "nse" : "bse";
+      out.push({
+        id: `${market}-${clean.toLowerCase()}`,
+        symbol: clean,
+        name: `${name} (${exch})`,
+        market,
+        smartExchange: exch,
+        smartToken: token,
+        smartTradingSymbol: clean,
+        yahooSymbol: `${clean}.${exch === "NSE" ? "NS" : "BO"}`,
+      });
     }
-  });
+    // dedupe by exchange+symbol
+    const map = new Map<string, (typeof out)[number]>();
+    for (const x of out) map.set(`${x.smartExchange}:${x.symbol}`, x);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [] as Array<{
+      id: string;
+      symbol: string;
+      name: string;
+      market: "nse" | "bse";
+      smartExchange: "NSE" | "BSE";
+      smartToken: string;
+      smartTradingSymbol: string;
+      yahooSymbol: string;
+    }>;
+  }
+});

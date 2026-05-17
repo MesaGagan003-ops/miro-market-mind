@@ -23,19 +23,24 @@ export function StrategicPlanPanel({
     if (recentPrices.length < 10) return null;
 
     // Momentum trader: follows recent trend
-    const recentReturn = (recentPrices[recentPrices.length - 1] - recentPrices[Math.max(0, recentPrices.length - 6)]) / recentPrices[Math.max(0, recentPrices.length - 6)];
-    const momentumSignal = recentReturn > 0.001 ? "long" : recentReturn < -0.001 ? "short" : "neutral";
+    const recentReturn =
+      (recentPrices[recentPrices.length - 1] - recentPrices[Math.max(0, recentPrices.length - 6)]) /
+      recentPrices[Math.max(0, recentPrices.length - 6)];
+    const momentumSignal =
+      recentReturn > 0.001 ? "long" : recentReturn < -0.001 ? "short" : "neutral";
     const momentumConfidence = Math.min(0.95, Math.abs(recentReturn) * 100);
 
     // Mean-reversion trader: bets on reversion to average
-    const sma20 = recentPrices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, recentPrices.length);
+    const sma20 =
+      recentPrices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, recentPrices.length);
     const deviation = (currentPrice - sma20) / sma20;
     const meanReversionSignal = deviation > 0.02 ? "short" : deviation < -0.02 ? "long" : "neutral";
     const meanReversionConfidence = Math.min(0.95, Math.abs(deviation) * 80);
 
     // Market maker: follows volatility & volume (simulated from price variance)
     const volatility = calculateVolatility(recentPrices.slice(-20));
-    const makerSignal = volatility > 0.015 ? "widen_spread" : volatility < 0.005 ? "tighten_spread" : "neutral";
+    const makerSignal =
+      volatility > 0.015 ? "widen_spread" : volatility < 0.005 ? "tighten_spread" : "neutral";
     const makerConfidence = Math.min(0.95, volatility * 100);
 
     // Consensus detector: how many agree?
@@ -133,7 +138,7 @@ export function StrategicPlanPanel({
 
     // Opportunity: expand when vol is low, contract when vol is high
     let opportunity = "NEUTRAL";
-    if (isVolContracting && agentAnalysis?.convergence! > 0.5) opportunity = "LOW_VOL_SETUP";
+    if (isVolContracting && (agentAnalysis?.convergence ?? 0) > 0.5) opportunity = "LOW_VOL_SETUP";
     if (isVolExpanding && prediction.hybridConfidence > 0.6) opportunity = "HIGH_VOL_TRADE";
 
     return {
@@ -147,15 +152,18 @@ export function StrategicPlanPanel({
 
   // 5. Ensemble Model Weighting
   const ensembleWeights = useMemo(() => {
+    const wRec = prediction.weights as Record<string, number>;
     const weights = {
       arima: prediction.weights.arima * (agentAnalysis?.convergence ?? 0.5),
-      garch: (prediction.weights as any).garch ? (prediction.weights as any).garch * (volatilityOpportunity?.ratio ?? 1) : 0.15,
+      garch: wRec["garch"] ? wRec["garch"] * (volatilityOpportunity?.ratio ?? 1) : 0.15,
       hmm: prediction.weights.hmm * (equilibriumAnalysis?.stability ?? 0.5),
       entropy: prediction.weights.entropy * dataQualityScore,
       hurst: prediction.weights.hurst * (agentAnalysis?.convergence ?? 0.5),
       neural: prediction.weights.neural * prediction.hybridConfidence,
       llm: llmSignal.confidence,
-      indicators: (prediction.weights as any).indicators ? (prediction.weights as any).indicators * (agentAnalysis?.convergence ?? 0.5) : 0.12,
+      indicators: prediction.weights.indicators
+        ? prediction.weights.indicators * (agentAnalysis?.convergence ?? 0.5)
+        : 0.12,
     };
 
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -168,7 +176,15 @@ export function StrategicPlanPanel({
     );
 
     return normalized;
-  }, [prediction.weights, agentAnalysis, equilibriumAnalysis, volatilityOpportunity, dataQualityScore, llmSignal.confidence]);
+  }, [
+    prediction.weights,
+    agentAnalysis,
+    equilibriumAnalysis,
+    volatilityOpportunity,
+    dataQualityScore,
+    llmSignal.confidence,
+    prediction.hybridConfidence,
+  ]);
 
   // 6. Overall Strategic Signal — Hybrid model + technical indicator fusion
   const strategicSignal = useMemo(() => {
@@ -185,12 +201,21 @@ export function StrategicPlanPanel({
     // indicators.bias already aggregates VWAP-z, EMA slope, MACD
     const techBias = Math.max(-1, Math.min(1, prediction.indicators.bias));
     const momentumPush =
-      agentAnalysis.momentum.signal === "long" ? 0.5 :
-      agentAnalysis.momentum.signal === "short" ? -0.5 : 0;
+      agentAnalysis.momentum.signal === "long"
+        ? 0.5
+        : agentAnalysis.momentum.signal === "short"
+          ? -0.5
+          : 0;
     const meanRevPush =
-      agentAnalysis.meanReversion.signal === "long" ? 0.25 :
-      agentAnalysis.meanReversion.signal === "short" ? -0.25 : 0;
-    const techScore = Math.max(-1, Math.min(1, 0.6 * techBias + 0.3 * momentumPush + 0.1 * meanRevPush));
+      agentAnalysis.meanReversion.signal === "long"
+        ? 0.25
+        : agentAnalysis.meanReversion.signal === "short"
+          ? -0.25
+          : 0;
+    const techScore = Math.max(
+      -1,
+      Math.min(1, 0.6 * techBias + 0.3 * momentumPush + 0.1 * meanRevPush),
+    );
 
     // --- Fused signed score (hybrid 55%, technicals 45%) ---
     const fusedScore = 0.55 * modelScore + 0.45 * techScore;
@@ -208,14 +233,15 @@ export function StrategicPlanPanel({
       confidence: prediction.hybridConfidence,
       dataQuality: dataQualityScore,
     };
-    const compositeScore = Object.values(components).reduce((a, b) => a + b, 0) / Object.keys(components).length;
+    const compositeScore =
+      Object.values(components).reduce((a, b) => a + b, 0) / Object.keys(components).length;
 
     // --- BUY / SELL / HOLD recommendation ---
     // Require: clear direction (|fused| > 0.18), reasonable confidence,
     // and ideally model + technicals agreeing.
     let recommendation: "BUY" | "SELL" | "HOLD" | "AVOID" = "HOLD";
     const actionGate = compositeScore > 0.55 && Math.abs(fusedScore) > 0.18;
-    const strongGate = compositeScore > 0.65 && Math.abs(fusedScore) > 0.30 && agreement;
+    const strongGate = compositeScore > 0.65 && Math.abs(fusedScore) > 0.3 && agreement;
     if (compositeScore < 0.35) recommendation = "AVOID";
     else if (strongGate || actionGate) {
       recommendation = fusedScore > 0 ? "BUY" : "SELL";
@@ -235,13 +261,25 @@ export function StrategicPlanPanel({
       components,
     };
   }, [
-    agentAnalysis, equilibriumAnalysis, positionSizing,
-    prediction.finalPrice, prediction.garch.sigma, prediction.hmm.stateProbs,
-    prediction.indicators.bias, prediction.hybridConfidence,
-    currentPrice, dataQualityScore,
+    agentAnalysis,
+    equilibriumAnalysis,
+    positionSizing,
+    prediction.finalPrice,
+    prediction.garch.sigma,
+    prediction.hmm.stateProbs,
+    prediction.indicators.bias,
+    prediction.hybridConfidence,
+    currentPrice,
+    dataQualityScore,
   ]);
 
-  if (!agentAnalysis || !equilibriumAnalysis || !positionSizing || !volatilityOpportunity || !strategicSignal) {
+  if (
+    !agentAnalysis ||
+    !equilibriumAnalysis ||
+    !positionSizing ||
+    !volatilityOpportunity ||
+    !strategicSignal
+  ) {
     return (
       <div className="panel p-4 text-sm text-muted-foreground">
         <div className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
@@ -265,7 +303,9 @@ export function StrategicPlanPanel({
         <AlertDescription className="space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Strategic Recommendation</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Strategic Recommendation
+              </div>
               <div
                 className="text-lg font-display font-bold"
                 style={{
@@ -280,11 +320,14 @@ export function StrategicPlanPanel({
                 {strategicSignal.recommendation}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                Hybrid model + technical indicators {strategicSignal.agreement ? "✓ agree" : "⚠ diverge"}
+                Hybrid model + technical indicators{" "}
+                {strategicSignal.agreement ? "✓ agree" : "⚠ diverge"}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Market Outlook</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Market Outlook
+              </div>
               <div
                 className="text-lg font-display font-bold"
                 style={{
@@ -306,14 +349,20 @@ export function StrategicPlanPanel({
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div className="bg-card p-1.5 rounded border border-border/50">
               <div className="uppercase text-muted-foreground text-[8px]">Hybrid Model Score</div>
-              <div className={`font-bold ${strategicSignal.modelScore > 0 ? "text-bull" : strategicSignal.modelScore < 0 ? "text-bear" : "text-foreground"}`}>
-                {strategicSignal.modelScore > 0 ? "+" : ""}{(strategicSignal.modelScore * 100).toFixed(0)}
+              <div
+                className={`font-bold ${strategicSignal.modelScore > 0 ? "text-bull" : strategicSignal.modelScore < 0 ? "text-bear" : "text-foreground"}`}
+              >
+                {strategicSignal.modelScore > 0 ? "+" : ""}
+                {(strategicSignal.modelScore * 100).toFixed(0)}
               </div>
             </div>
             <div className="bg-card p-1.5 rounded border border-border/50">
               <div className="uppercase text-muted-foreground text-[8px]">Technicals Score</div>
-              <div className={`font-bold ${strategicSignal.techScore > 0 ? "text-bull" : strategicSignal.techScore < 0 ? "text-bear" : "text-foreground"}`}>
-                {strategicSignal.techScore > 0 ? "+" : ""}{(strategicSignal.techScore * 100).toFixed(0)}
+              <div
+                className={`font-bold ${strategicSignal.techScore > 0 ? "text-bull" : strategicSignal.techScore < 0 ? "text-bear" : "text-foreground"}`}
+              >
+                {strategicSignal.techScore > 0 ? "+" : ""}
+                {(strategicSignal.techScore * 100).toFixed(0)}
               </div>
             </div>
           </div>
@@ -321,7 +370,9 @@ export function StrategicPlanPanel({
             {Object.entries(strategicSignal.components).map(([key, value]) => (
               <div key={key} className="bg-card p-1.5 rounded border border-border/50">
                 <div className="uppercase text-muted-foreground text-[8px]">{key}</div>
-                <div className="font-bold text-foreground">{(typeof value === "number" ? value * 100 : 0).toFixed(0)}%</div>
+                <div className="font-bold text-foreground">
+                  {(typeof value === "number" ? value * 100 : 0).toFixed(0)}%
+                </div>
               </div>
             ))}
           </div>
@@ -338,30 +389,40 @@ export function StrategicPlanPanel({
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-muted-foreground">Momentum Trader</div>
-                <div className="font-mono text-[9px] text-primary/70">{agentAnalysis.momentum.signal.toUpperCase()}</div>
+                <div className="font-mono text-[9px] text-primary/70">
+                  {agentAnalysis.momentum.signal.toUpperCase()}
+                </div>
               </div>
-              <div className="text-right font-semibold">{(agentAnalysis.momentum.confidence * 100).toFixed(0)}%</div>
+              <div className="text-right font-semibold">
+                {(agentAnalysis.momentum.confidence * 100).toFixed(0)}%
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-muted-foreground">Mean-Reversion Trader</div>
-                <div className="font-mono text-[9px] text-primary/70">{agentAnalysis.meanReversion.signal.toUpperCase()}</div>
+                <div className="font-mono text-[9px] text-primary/70">
+                  {agentAnalysis.meanReversion.signal.toUpperCase()}
+                </div>
               </div>
-              <div className="text-right font-semibold">{(agentAnalysis.meanReversion.confidence * 100).toFixed(0)}%</div>
+              <div className="text-right font-semibold">
+                {(agentAnalysis.meanReversion.confidence * 100).toFixed(0)}%
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-muted-foreground">Market Maker</div>
-                <div className="font-mono text-[9px] text-primary/70">{agentAnalysis.marketMaker.signal.toUpperCase()}</div>
+                <div className="font-mono text-[9px] text-primary/70">
+                  {agentAnalysis.marketMaker.signal.toUpperCase()}
+                </div>
               </div>
-              <div className="text-right font-semibold">{(agentAnalysis.marketMaker.confidence * 100).toFixed(0)}%</div>
+              <div className="text-right font-semibold">
+                {(agentAnalysis.marketMaker.confidence * 100).toFixed(0)}%
+              </div>
             </div>
             <div className="border-t border-border pt-2 mt-2">
               <div className="flex items-center justify-between font-semibold">
                 <div className="text-muted-foreground">Consensus</div>
-                <div>
-                  {agentAnalysis.agreements}/4 agents aligned
-                </div>
+                <div>{agentAnalysis.agreements}/4 agents aligned</div>
               </div>
             </div>
           </div>
@@ -385,11 +446,15 @@ export function StrategicPlanPanel({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <div className="text-muted-foreground text-[9px] mb-0.5">Stability Score</div>
-                <div className="text-lg font-bold">{(equilibriumAnalysis.stability * 100).toFixed(0)}%</div>
+                <div className="text-lg font-bold">
+                  {(equilibriumAnalysis.stability * 100).toFixed(0)}%
+                </div>
               </div>
               <div>
                 <div className="text-muted-foreground text-[9px] mb-0.5">Break Probability</div>
-                <div className="text-lg font-bold">{(equilibriumAnalysis.breakChance * 100).toFixed(0)}%</div>
+                <div className="text-lg font-bold">
+                  {(equilibriumAnalysis.breakChance * 100).toFixed(0)}%
+                </div>
               </div>
             </div>
             <div>
@@ -414,7 +479,9 @@ export function StrategicPlanPanel({
               </div>
               <div>
                 <div className="text-muted-foreground text-[9px] mb-1">Minimax (Safe)</div>
-                <div className="text-sm font-bold text-primary">{(positionSizing.minimax * 100).toFixed(1)}%</div>
+                <div className="text-sm font-bold text-primary">
+                  {(positionSizing.minimax * 100).toFixed(1)}%
+                </div>
               </div>
             </div>
             <div className="border-t border-border pt-2">
@@ -438,11 +505,15 @@ export function StrategicPlanPanel({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="text-muted-foreground text-[9px] mb-1">Recent Vol</div>
-                <div className="font-mono text-sm font-bold">{(volatilityOpportunity.recent * 100).toFixed(2)}%</div>
+                <div className="font-mono text-sm font-bold">
+                  {(volatilityOpportunity.recent * 100).toFixed(2)}%
+                </div>
               </div>
               <div>
                 <div className="text-muted-foreground text-[9px] mb-1">Historical Vol</div>
-                <div className="font-mono text-sm font-bold">{(volatilityOpportunity.historical * 100).toFixed(2)}%</div>
+                <div className="font-mono text-sm font-bold">
+                  {(volatilityOpportunity.historical * 100).toFixed(2)}%
+                </div>
               </div>
             </div>
             <div className="border-t border-border pt-2">
@@ -470,42 +541,58 @@ export function StrategicPlanPanel({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 text-[10px]">
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">ARIMA(2,1,1)</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.arima || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.arima || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Shock-driven recursion</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">GARCH(1,1)</div>
-              <div className="text-sm font-bold text-foreground">{((((prediction.weights as any).garch) || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {(((prediction.weights as Record<string, number>)["garch"] || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Vol persistence</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">HMM Regime</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.hmm || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.hmm || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Bull/bear drift</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">Entropy</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.entropy || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.entropy || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Noise damping</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">Hurst</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.hurst || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.hurst || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Trending factor</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">Neural Network</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.neural || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.neural || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Pattern learning</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">LLM Sentiment</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.llm || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.llm || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">News bias</div>
             </div>
             <div className="bg-card p-2 rounded border border-border/50">
               <div className="uppercase text-[8px] text-muted-foreground mb-1">Indicators</div>
-              <div className="text-sm font-bold text-foreground">{((prediction.weights.indicators || 0) * 100).toFixed(1)}%</div>
+              <div className="text-sm font-bold text-foreground">
+                {((prediction.weights.indicators || 0) * 100).toFixed(1)}%
+              </div>
               <div className="text-[8px] text-muted-foreground mt-0.5">Technical signals</div>
             </div>
           </div>
@@ -517,7 +604,9 @@ export function StrategicPlanPanel({
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 text-[10px]">
             <div className="bg-card p-2 rounded border border-border/50">
-              <div className="uppercase text-[8px] text-muted-foreground mb-1">SSL (Stochastic)</div>
+              <div className="uppercase text-[8px] text-muted-foreground mb-1">
+                SSL (Stochastic)
+              </div>
               <div className="text-sm font-bold text-foreground">95% Band</div>
               <div className="text-[8px] text-muted-foreground mt-0.5">μT ± 1.96σ√T Itô</div>
             </div>
@@ -542,20 +631,24 @@ export function StrategicPlanPanel({
         </h3>
         <div className="text-[10px] text-muted-foreground leading-relaxed space-y-1.5">
           <p>
-            <span className="text-foreground font-semibold">Convergence:</span> {agentAnalysis.agreements}/4 market agents aligned, indicating{" "}
+            <span className="text-foreground font-semibold">Convergence:</span>{" "}
+            {agentAnalysis.agreements}/4 market agents aligned, indicating{" "}
             {equilibriumAnalysis.isStable ? "stable" : "unstable"} equilibrium.
           </p>
           <p>
-            <span className="text-foreground font-semibold">Volatility:</span> Recent volatility is {volatilityOpportunity.ratio.toFixed(2)}x historical, suggesting{" "}
+            <span className="text-foreground font-semibold">Volatility:</span> Recent volatility is{" "}
+            {volatilityOpportunity.ratio.toFixed(2)}x historical, suggesting{" "}
             {volatilityOpportunity.trend.toLowerCase()} market regime.
           </p>
           <p>
-            <span className="text-foreground font-semibold">Position:</span> {positionSizing.riskProfile} sizing ({(positionSizing.adjusted * 100).toFixed(1)}%) recommended given{" "}
-            {equilibriumAnalysis.opportunityRank.toLowerCase()} opportunity rank.
+            <span className="text-foreground font-semibold">Position:</span>{" "}
+            {positionSizing.riskProfile} sizing ({(positionSizing.adjusted * 100).toFixed(1)}%)
+            recommended given {equilibriumAnalysis.opportunityRank.toLowerCase()} opportunity rank.
           </p>
           {llmSignal.rationale && (
             <p>
-              <span className="text-foreground font-semibold">Sentiment:</span> {llmSignal.rationale}
+              <span className="text-foreground font-semibold">Sentiment:</span>{" "}
+              {llmSignal.rationale}
             </p>
           )}
         </div>

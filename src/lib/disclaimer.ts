@@ -2,12 +2,20 @@ const KEY = "miro.disclaimer.acknowledged.v1";
 
 export function hasAcknowledgedDisclaimer(): boolean {
   if (typeof window === "undefined") return true;
-  try { return localStorage.getItem(KEY) === "true"; } catch { return false; }
+  try {
+    return localStorage.getItem(KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
 export function acknowledgeDisclaimer(): void {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(KEY, "true"); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(KEY, "true");
+  } catch {
+    /* ignore */
+  }
 }
 
 export const DISCLAIMER_SHORT =

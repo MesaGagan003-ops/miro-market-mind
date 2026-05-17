@@ -75,9 +75,9 @@ export function fitHmm3(prices: number[]): HmmResult {
   let mus: [number, number, number] = [q1, mean, q3];
   let sigmas: [number, number, number] = [std * 0.8, std * 1.5, std * 0.8];
   let A: number[][] = [
-    [0.85, 0.10, 0.05],
-    [0.15, 0.70, 0.15],
-    [0.05, 0.10, 0.85],
+    [0.85, 0.1, 0.05],
+    [0.15, 0.7, 0.15],
+    [0.05, 0.1, 0.85],
   ];
   let pi: number[] = [1 / 3, 1 / 3, 1 / 3];
 
@@ -91,7 +91,7 @@ export function fitHmm3(prices: number[]): HmmResult {
   let prevLL = -Infinity;
   let iter = 0;
   let lastLL = 0;
-  let llHistory: number[] = [];
+  const llHistory: number[] = [];
 
   for (iter = 0; iter < MAX_EM; iter++) {
     // Forward with scaling
@@ -153,7 +153,8 @@ export function fitHmm3(prices: number[]): HmmResult {
       ];
       for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
-          tmp[i][j] = alpha[t][i] * A[i][j] * gauss(returns[t + 1], mus[j], sigmas[j]) * beta[t + 1][j];
+          tmp[i][j] =
+            alpha[t][i] * A[i][j] * gauss(returns[t + 1], mus[j], sigmas[j]) * beta[t + 1][j];
           denom += tmp[i][j];
         }
       }
@@ -174,8 +175,12 @@ export function fitHmm3(prices: number[]): HmmResult {
     const newMus: [number, number, number] = [0, 0, 0];
     const newSigmas: [number, number, number] = [0, 0, 0];
     for (let s = 0; s < N; s++) {
-      let num = 0, den = 0;
-      for (let t = 0; t < T; t++) { num += gamma[t][s] * returns[t]; den += gamma[t][s]; }
+      let num = 0,
+        den = 0;
+      for (let t = 0; t < T; t++) {
+        num += gamma[t][s] * returns[t];
+        den += gamma[t][s];
+      }
       newMus[s] = den > 0 ? num / den : mus[s];
       let varNum = 0;
       for (let t = 0; t < T; t++) varNum += gamma[t][s] * (returns[t] - newMus[s]) ** 2;
@@ -186,8 +191,9 @@ export function fitHmm3(prices: number[]): HmmResult {
 
     // Track LL improvement for adaptive early stopping
     llHistory.push(ll);
-    const relativeImprovement = prevLL === -Infinity ? 1.0 : (ll - prevLL) / Math.max(1e-10, Math.abs(prevLL));
-    
+    const relativeImprovement =
+      prevLL === -Infinity ? 1.0 : (ll - prevLL) / Math.max(1e-10, Math.abs(prevLL));
+
     // Early stopping: if LL improvement drops below threshold OR we've done max iterations
     if (iter > 5 && relativeImprovement < TOL) {
       iter++;
@@ -246,7 +252,10 @@ export function fitHmm3(prices: number[]): HmmResult {
       let bestPrev = 0;
       for (let sp = 0; sp < N; sp++) {
         const v = delta[t - 1][sp] + logA[sp][s];
-        if (v > bestVal) { bestVal = v; bestPrev = sp; }
+        if (v > bestVal) {
+          bestVal = v;
+          bestPrev = sp;
+        }
       }
       delta[t][s] = bestVal + Math.log(gauss(returns[t], mus[s], sigmas[s]) + 1e-300);
       psi[t][s] = bestPrev;

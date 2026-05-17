@@ -14,8 +14,22 @@ interface Props {
 }
 
 export function ModelPanels({ result, regimeHistory }: Props) {
-  const { arima, garch, hmm, entropy, hurst, hamiltonian, ssl,
-    kalman, jump, hawkes, wavelet, transferEntropy: te, multifractal, fokkerPlanck } = result;
+  const {
+    arima,
+    garch,
+    hmm,
+    entropy,
+    hurst,
+    hamiltonian,
+    ssl,
+    kalman,
+    jump,
+    hawkes,
+    wavelet,
+    transferEntropy: te,
+    multifractal,
+    fokkerPlanck,
+  } = result;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -36,15 +50,24 @@ export function ModelPanels({ result, regimeHistory }: Props) {
           <Row label="P(up jump)" value={`${(jump.pUp * 100).toFixed(0)}%`} />
           <Row label="Hawkes branching n=α/β" value={hawkes.branching.toFixed(3)} />
           <Row label="Hawkes intensity λ(t)" value={hawkes.currentIntensity.toFixed(4)} />
-          <Row label="P(cascade in 10 steps)" value={`${(hawkes.cascadeProbability * 100).toFixed(1)}%`} />
+          <Row
+            label="P(cascade in 10 steps)"
+            value={`${(hawkes.cascadeProbability * 100).toFixed(1)}%`}
+          />
           <Row label="Wavelet dominant scale" value={`2^${wavelet.dominantScale + 1} bars`} />
           <Row label="Wavelet trend slope" value={`${(wavelet.trendSlope * 100).toFixed(3)}%`} />
           <Row label="Transfer entropy (self)" value={te.selfTE.toFixed(3)} />
-          <Row label="Transfer entropy (cross)" value={te.crossTE != null ? te.crossTE.toFixed(3) : "—"} />
+          <Row
+            label="Transfer entropy (cross)"
+            value={te.crossTE != null ? te.crossTE.toFixed(3) : "—"}
+          />
           <Row label="Multifractal width Δh" value={multifractal.width.toFixed(3)} />
           <Row label="Regime-shift risk" value={multifractal.regimeShiftRisk.toUpperCase()} />
           <Row label="Fokker–Planck mean" value={formatPrice(fokkerPlanck.mean)} />
-          <Row label="FP 90% band" value={`${formatPrice(fokkerPlanck.bands[2].lower)} – ${formatPrice(fokkerPlanck.bands[2].upper)}`} />
+          <Row
+            label="FP 90% band"
+            value={`${formatPrice(fokkerPlanck.bands[2].lower)} – ${formatPrice(fokkerPlanck.bands[2].upper)}`}
+          />
         </div>
         <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
           {hawkes.isClusterRegime
@@ -69,16 +92,12 @@ export function ModelPanels({ result, regimeHistory }: Props) {
         <Row label="Long-run drift / step" value={signedPrice(arima.driftPerStep)} />
         <Row label="Residual σ" value={formatPrice(arima.residualStd)} />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          Two-lag autoregressive memory captures momentum + mean-reversion together.
-          Recursive forecast samples ε ~ N(0, σ_resid) per step — that's the wiggle.
+          Two-lag autoregressive memory captures momentum + mean-reversion together. Recursive
+          forecast samples ε ~ N(0, σ_resid) per step — that's the wiggle.
         </p>
       </Panel>
 
-      <Panel
-        title="GARCH(1,1)"
-        accent="var(--garch)"
-        subtitle="σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁"
-      >
+      <Panel title="GARCH(1,1)" accent="var(--garch)" subtitle="σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁">
         <Row label="ω (baseline)" value={garch.omega.toExponential(2)} />
         <Row label="α (shock reactivity)" value={garch.alpha.toFixed(3)} />
         <Row label="β (volatility memory)" value={garch.beta.toFixed(3)} />
@@ -106,7 +125,9 @@ export function ModelPanels({ result, regimeHistory }: Props) {
           </div>
           <div className="rounded border border-border px-2 py-1.5">
             <div className="text-muted-foreground uppercase">Log-likelihood</div>
-            <div className="text-foreground font-mono font-semibold">{(hmm.logLik ?? 0).toFixed(1)}</div>
+            <div className="text-foreground font-mono font-semibold">
+              {(hmm.logLik ?? 0).toFixed(1)}
+            </div>
           </div>
           <div className="rounded border border-border px-2 py-1.5">
             <div className="text-muted-foreground uppercase">Viterbi length</div>
@@ -121,7 +142,13 @@ export function ModelPanels({ result, regimeHistory }: Props) {
             {hmm.stateProbs.map((p, i) => (
               <div key={i} className="mb-1.5">
                 <div className="flex justify-between text-xs mb-0.5">
-                  <span className={i === hmm.dominantState ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                  <span
+                    className={
+                      i === hmm.dominantState
+                        ? "text-foreground font-semibold"
+                        : "text-muted-foreground"
+                    }
+                  >
                     {HMM_STATE_LABELS[i]}
                   </span>
                   <span className="text-foreground font-mono">{(p * 100).toFixed(0)}%</span>
@@ -131,7 +158,8 @@ export function ModelPanels({ result, regimeHistory }: Props) {
                     className="h-full"
                     style={{
                       width: `${p * 100}%`,
-                      background: i === 0 ? "var(--bear)" : i === 2 ? "var(--bull)" : "var(--entropy)",
+                      background:
+                        i === 0 ? "var(--bear)" : i === 2 ? "var(--bull)" : "var(--entropy)",
                     }}
                   />
                 </div>
@@ -147,16 +175,13 @@ export function ModelPanels({ result, regimeHistory }: Props) {
         </div>
       </Panel>
 
-      <Panel
-        title="Shannon Entropy"
-        accent="var(--entropy)"
-        subtitle="H(X) = −Σ p(xᵢ) log₂ p(xᵢ)"
-      >
+      <Panel title="Shannon Entropy" accent="var(--entropy)" subtitle="H(X) = −Σ p(xᵢ) log₂ p(xᵢ)">
         <div className="text-3xl font-display font-bold text-foreground">
           H = {entropy.H.toFixed(3)}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Edge ≈ {(entropy.edge * 100).toFixed(1)}% &nbsp;·&nbsp; Up-ratio {(entropy.upRatio * 100).toFixed(0)}%
+          Edge ≈ {(entropy.edge * 100).toFixed(1)}% &nbsp;·&nbsp; Up-ratio{" "}
+          {(entropy.upRatio * 100).toFixed(0)}%
         </div>
         <div className="mt-2 h-1.5 bg-muted rounded overflow-hidden">
           <div className="h-full bg-entropy" style={{ width: `${entropy.H * 100}%` }} />
@@ -179,10 +204,14 @@ export function ModelPanels({ result, regimeHistory }: Props) {
           H = {hurst.H.toFixed(3)}
         </div>
         <div className="text-xs text-muted-foreground mt-1 capitalize">
-          Regime: <span className="text-foreground font-semibold">{hurst.regime.replace("_", " ")}</span>
+          Regime:{" "}
+          <span className="text-foreground font-semibold">{hurst.regime.replace("_", " ")}</span>
         </div>
         <div className="mt-2 h-1.5 bg-muted rounded overflow-hidden relative">
-          <div className="h-full" style={{ width: `${hurst.H * 100}%`, background: "var(--entropy)" }} />
+          <div
+            className="h-full"
+            style={{ width: `${hurst.H * 100}%`, background: "var(--entropy)" }}
+          />
           <div className="absolute top-0 bottom-0 w-px bg-foreground/40" style={{ left: "50%" }} />
         </div>
         <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
@@ -194,15 +223,14 @@ export function ModelPanels({ result, regimeHistory }: Props) {
         </p>
       </Panel>
 
-      <Panel
-        title="Hamiltonian Energy"
-        accent="var(--garch)"
-        subtitle="H = ½v² + ½(ΔP/P)²"
-      >
+      <Panel title="Hamiltonian Energy" accent="var(--garch)" subtitle="H = ½v² + ½(ΔP/P)²">
         <Row label="Total energy H" value={hamiltonian.H.toExponential(2)} />
         <Row label="Kinetic (velocity²)" value={hamiltonian.KE.toExponential(2)} />
         <Row label="Potential (Δ from MA)" value={hamiltonian.PE.toExponential(2)} />
-        <Row label="Velocity (log-ret/step)" value={`${hamiltonian.velocity >= 0 ? "+" : ""}${(hamiltonian.velocity * 100).toFixed(3)}%`} />
+        <Row
+          label="Velocity (log-ret/step)"
+          value={`${hamiltonian.velocity >= 0 ? "+" : ""}${(hamiltonian.velocity * 100).toFixed(3)}%`}
+        />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
           {hamiltonian.KE > hamiltonian.PE
             ? "High kinetic — strong momentum, room to run."
@@ -212,11 +240,7 @@ export function ModelPanels({ result, regimeHistory }: Props) {
 
       {/* Quantum Speed Limit panel removed per request. */}
 
-      <Panel
-        title="Stochastic Speed Limit"
-        accent="var(--ssl)"
-        subtitle="Master-equation bound"
-      >
+      <Panel title="Stochastic Speed Limit" accent="var(--ssl)" subtitle="Master-equation bound">
         <Row label="Upper bound" value={formatPrice(ssl.upper)} />
         <Row label="Lower bound" value={formatPrice(ssl.lower)} />
         <Row label="Reachable range" value={`±${formatPrice(ssl.reachableRange / 2)}`} />
@@ -224,16 +248,21 @@ export function ModelPanels({ result, regimeHistory }: Props) {
         <Row label="⟨v⟩ (mean speed)" value={ssl.meanSpeed.toFixed(4)} />
         <Row label="Tightness Q" value={ssl.tightness.toFixed(2)} />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          τ ≥ D_TV / ⟨v⟩  (Master Equation, regime probabilities). Q→1 means the
-          system is following a near-optimal geodesic in probability space; Q≪1
-          means the bound has slack.
+          τ ≥ D_TV / ⟨v⟩ (Master Equation, regime probabilities). Q→1 means the system is following
+          a near-optimal geodesic in probability space; Q≪1 means the bound has slack.
         </p>
       </Panel>
     </div>
   );
 }
 
-function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm"]; regimeHistory: RegimeHistoryEntry[] }) {
+function RegimeDurationForecast({
+  hmm,
+  regimeHistory,
+}: {
+  hmm: HybridResult["hmm"];
+  regimeHistory: RegimeHistoryEntry[];
+}) {
   const currentState = hmm.dominantState;
   const stateLabels = ["Bear", "Sideways", "Bull"];
   const stateNames = ["Bearish", "Sideways", "Bullish"];
@@ -242,9 +271,13 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
   const selfTransition = hmm.transitionMatrix[currentState]?.[currentState] ?? 0;
   const continuePct = Math.max(0, Math.min(100, selfTransition * 100));
   const flipPct = Math.max(0, 100 - continuePct);
-  const expectedDuration = selfTransition >= 1 ? Number.POSITIVE_INFINITY : 1 / Math.max(1e-6, 1 - selfTransition);
+  const expectedDuration =
+    selfTransition >= 1 ? Number.POSITIVE_INFINITY : 1 / Math.max(1e-6, 1 - selfTransition);
   const historySegments = (() => {
-    const segments = regimeHistory.length > 0 ? [...regimeHistory] : [{ state: currentState, startedAt: Date.now() }];
+    const segments =
+      regimeHistory.length > 0
+        ? [...regimeHistory]
+        : [{ state: currentState, startedAt: Date.now() }];
     if (segments[segments.length - 1].state !== currentState) {
       segments.push({ state: currentState, startedAt: Date.now() });
     }
@@ -252,7 +285,9 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
   })();
 
   const currentSegment = historySegments[historySegments.length - 1];
-  const elapsedBars = currentSegment ? Math.max(0, (Date.now() - currentSegment.startedAt) / 60_000) : 0;
+  const elapsedBars = currentSegment
+    ? Math.max(0, (Date.now() - currentSegment.startedAt) / 60_000)
+    : 0;
 
   const historyWidths = historySegments.map((segment, index) => {
     const nextStart = historySegments[index + 1]?.startedAt ?? Date.now();
@@ -271,10 +306,14 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Current regime</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                Current regime
+              </div>
               <div
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-semibold"
-                style={{ boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${currentColor} 18%, transparent)` }}
+                style={{
+                  boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${currentColor} 18%, transparent)`,
+                }}
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: currentColor }} />
                 <span className="text-foreground">{stateNames[currentState]}</span>
@@ -282,9 +321,12 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
             </div>
 
             <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Already lasted</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Already lasted
+              </div>
               <div className="text-sm font-semibold text-foreground font-mono">
-                {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} bars · {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} min
+                {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} bars ·{" "}
+                {elapsedBars.toFixed(elapsedBars < 10 ? 1 : 0)} min
               </div>
             </div>
           </div>
@@ -292,10 +334,15 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
           <div className="rounded border border-border/60 bg-card/40 p-3">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-muted-foreground">Continue vs flip</span>
-              <span className="font-mono text-foreground">{continuePct.toFixed(0)}% / {flipPct.toFixed(0)}%</span>
+              <span className="font-mono text-foreground">
+                {continuePct.toFixed(0)}% / {flipPct.toFixed(0)}%
+              </span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted/70">
-              <div className="h-full rounded-full" style={{ width: `${continuePct}%`, background: currentColor }} />
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${continuePct}%`, background: currentColor }}
+              />
             </div>
             <div className="mt-1 flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
               <span>Continues</span>
@@ -310,11 +357,20 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
               return (
                 <div key={label} className="rounded border border-border/60 bg-card/35 p-2">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-                    <span className="h-2 w-2 rounded-full" style={{ background: stateColors[index] }} />
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {label}
+                    </span>
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: stateColors[index] }}
+                    />
                   </div>
-                  <div className="text-sm font-semibold text-foreground font-mono">{formatDuration(duration)} bars</div>
-                  <div className="text-[10px] text-muted-foreground">Pii {(pii * 100).toFixed(0)}%</div>
+                  <div className="text-sm font-semibold text-foreground font-mono">
+                    {formatDuration(duration)} bars
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Pii {(pii * 100).toFixed(0)}%
+                  </div>
                 </div>
               );
             })}
@@ -324,8 +380,12 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
         <div className="space-y-3">
           <div>
             <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="text-muted-foreground uppercase tracking-wider">Expected remaining duration</span>
-              <span className="font-mono text-foreground">{formatDuration(expectedDuration)} bars</span>
+              <span className="text-muted-foreground uppercase tracking-wider">
+                Expected remaining duration
+              </span>
+              <span className="font-mono text-foreground">
+                {formatDuration(expectedDuration)} bars
+              </span>
             </div>
             <div className="rounded border border-border/60 bg-card/40 p-3">
               <div className="text-[10px] text-muted-foreground leading-relaxed">
@@ -356,8 +416,14 @@ function RegimeDurationForecast({ hmm, regimeHistory }: { hmm: HybridResult["hmm
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
               {stateNames.map((label, index) => (
-                <span key={label} className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5">
-                  <span className="h-2 w-2 rounded-full" style={{ background: stateColors[index] }} />
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: stateColors[index] }}
+                  />
                   {label}
                 </span>
               ))}
@@ -388,7 +454,9 @@ function TransitionMatrix({ matrix }: { matrix: number[][] }) {
           <tr className="bg-muted/40">
             <th className="px-2 py-1 text-left text-muted-foreground font-normal">from \ to</th>
             {labels.map((l) => (
-              <th key={l} className="px-2 py-1 text-right text-muted-foreground font-normal">{l}</th>
+              <th key={l} className="px-2 py-1 text-right text-muted-foreground font-normal">
+                {l}
+              </th>
             ))}
           </tr>
         </thead>
@@ -402,7 +470,9 @@ function TransitionMatrix({ matrix }: { matrix: number[][] }) {
                   <td
                     key={j}
                     className="px-2 py-1 text-right text-foreground"
-                    style={{ background: `color-mix(in oklab, var(--hmm) ${intensity * 35}%, transparent)` }}
+                    style={{
+                      background: `color-mix(in oklab, var(--hmm) ${intensity * 35}%, transparent)`,
+                    }}
                   >
                     {(v * 100).toFixed(0)}%
                   </td>
@@ -416,12 +486,29 @@ function TransitionMatrix({ matrix }: { matrix: number[][] }) {
   );
 }
 
-function Panel({ title, subtitle, accent, children, full }: { title: string; subtitle?: string; accent: string; children: React.ReactNode; full?: boolean }) {
+function Panel({
+  title,
+  subtitle,
+  accent,
+  children,
+  full,
+}: {
+  title: string;
+  subtitle?: string;
+  accent: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
   return (
-    <div className={`panel p-4 ${full ? "lg:col-span-2" : ""}`} style={{ borderTop: `2px solid ${accent}` }}>
+    <div
+      className={`panel p-4 ${full ? "lg:col-span-2" : ""}`}
+      style={{ borderTop: `2px solid ${accent}` }}
+    >
       <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
         <h3 className="font-display font-semibold text-sm text-foreground">{title}</h3>
-        {subtitle && <span className="text-[10px] text-muted-foreground font-mono">{subtitle}</span>}
+        {subtitle && (
+          <span className="text-[10px] text-muted-foreground font-mono">{subtitle}</span>
+        )}
       </div>
       {children}
     </div>

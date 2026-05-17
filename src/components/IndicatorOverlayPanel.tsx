@@ -6,11 +6,26 @@
 
 import { useMemo } from "react";
 import {
-  ComposedChart, Line, Bar, Area, XAxis, YAxis,
-  Tooltip, CartesianGrid, ReferenceLine,
+  ComposedChart,
+  Line,
+  Bar,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import type { HybridResult } from "@/lib/physics/hybrid";
-import { sma, ema, macd, vwapProxy, superTrend, extractFeatures, fibonacciRetracement } from "@/lib/physics/indicators";
+import {
+  sma,
+  ema,
+  macd,
+  vwapProxy,
+  superTrend,
+  extractFeatures,
+  fibonacciRetracement,
+} from "@/lib/physics/indicators";
 
 interface Props {
   history: { ts: number; price: number }[];
@@ -55,9 +70,7 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
         <h3 className="font-display font-semibold text-foreground mb-1">
           Technical indicator overlay
         </h3>
-        <p className="text-xs text-muted-foreground">
-          Streaming more data… (need ≥ 30 bars)
-        </p>
+        <p className="text-xs text-muted-foreground">Streaming more data… (need ≥ 30 bars)</p>
       </div>
     );
   }
@@ -103,10 +116,26 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
-          <FeatureChip label="VWAP-z" value={features.vwapZ.toFixed(2)} good={Math.abs(features.vwapZ) < 1.5} />
-          <FeatureChip label="EMA-slope (fast)" value={(features.emaSlopeFast * 1e4).toFixed(2) + "‱"} good={features.emaSlopeFast >= 0} />
-          <FeatureChip label="MACD hist" value={features.macdHist.toFixed(4)} good={features.macdHist >= 0} />
-          <FeatureChip label="Bias → model" value={(features.bias * 100).toFixed(0) + "%"} good={features.bias >= 0} />
+          <FeatureChip
+            label="VWAP-z"
+            value={features.vwapZ.toFixed(2)}
+            good={Math.abs(features.vwapZ) < 1.5}
+          />
+          <FeatureChip
+            label="EMA-slope (fast)"
+            value={(features.emaSlopeFast * 1e4).toFixed(2) + "‱"}
+            good={features.emaSlopeFast >= 0}
+          />
+          <FeatureChip
+            label="MACD hist"
+            value={features.macdHist.toFixed(4)}
+            good={features.macdHist >= 0}
+          />
+          <FeatureChip
+            label="Bias → model"
+            value={(features.bias * 100).toFixed(0) + "%"}
+            good={features.bias >= 0}
+          />
         </div>
       </div>
 
@@ -116,7 +145,17 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <span className="text-muted-foreground">Current Market Signal:</span>
-            <span className="font-bold text-foreground ml-1" style={{ color: currentSignal === "BUY" ? "hsl(142 76% 50%)" : currentSignal === "SELL" ? "hsl(0 84% 60%)" : "hsl(50 95% 55%)" }}>
+            <span
+              className="font-bold text-foreground ml-1"
+              style={{
+                color:
+                  currentSignal === "BUY"
+                    ? "hsl(142 76% 50%)"
+                    : currentSignal === "SELL"
+                      ? "hsl(0 84% 60%)"
+                      : "hsl(50 95% 55%)",
+              }}
+            >
               {currentSignal}
             </span>
           </div>
@@ -128,40 +167,82 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
           </div>
           <div>
             <span className="text-muted-foreground">MACD Momentum:</span>
-            <span className="font-bold text-foreground ml-1" style={{ color: features.macdHist >= 0 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
+            <span
+              className="font-bold text-foreground ml-1"
+              style={{ color: features.macdHist >= 0 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}
+            >
               {features.macdHist >= 0 ? "🟢 Positive" : "🔴 Negative"}
             </span>
           </div>
           <div>
             <span className="text-muted-foreground">VWAP Position:</span>
-            <span className="font-bold text-foreground ml-1">{Math.abs(features.vwapZ) < 0.5 ? "At VWAP" : features.vwapZ > 0 ? `${Math.abs(features.vwapZ).toFixed(1)}σ above` : `${Math.abs(features.vwapZ).toFixed(1)}σ below`}</span>
+            <span className="font-bold text-foreground ml-1">
+              {Math.abs(features.vwapZ) < 0.5
+                ? "At VWAP"
+                : features.vwapZ > 0
+                  ? `${Math.abs(features.vwapZ).toFixed(1)}σ above`
+                  : `${Math.abs(features.vwapZ).toFixed(1)}σ below`}
+            </span>
           </div>
           <div>
             <span className="text-muted-foreground">Fibonacci Zone:</span>
-            <span className="font-bold text-foreground ml-1">{(fib.position * 100).toFixed(0)}% of range</span>
+            <span className="font-bold text-foreground ml-1">
+              {(fib.position * 100).toFixed(0)}% of range
+            </span>
           </div>
           <div>
             <span className="text-muted-foreground">SuperTrend:</span>
-            <span className="font-bold text-foreground ml-1" style={{ color: features.superTrendDir === 1 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)" }}>
+            <span
+              className="font-bold text-foreground ml-1"
+              style={{
+                color: features.superTrendDir === 1 ? "hsl(142 76% 50%)" : "hsl(0 84% 60%)",
+              }}
+            >
               {features.superTrendDir === 1 ? "Bullish" : "Bearish"}
             </span>
           </div>
           <div>
             <span className="text-muted-foreground">Model Weight:</span>
-            <span className="font-bold text-foreground ml-1">{(features.bias * 100).toFixed(1)}% bullish bias</span>
+            <span className="font-bold text-foreground ml-1">
+              {(features.bias * 100).toFixed(1)}% bullish bias
+            </span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-border/40">
-          <div>Fib 0.382: <span className="font-mono text-foreground">{formatPrice(fib.levels.level382)}</span></div>
-          <div>Fib 0.618: <span className="font-mono text-foreground">{formatPrice(fib.levels.level618)}</span></div>
-          <div>Nearest support: <span className="font-mono text-foreground">{formatPrice(fib.levels.level500)}</span></div>
-          <div>Spot: <span className="font-mono text-foreground">{formatPrice(latestPrice)}</span></div>
+          <div>
+            Fib 0.382:{" "}
+            <span className="font-mono text-foreground">{formatPrice(fib.levels.level382)}</span>
+          </div>
+          <div>
+            Fib 0.618:{" "}
+            <span className="font-mono text-foreground">{formatPrice(fib.levels.level618)}</span>
+          </div>
+          <div>
+            Nearest support:{" "}
+            <span className="font-mono text-foreground">{formatPrice(fib.levels.level500)}</span>
+          </div>
+          <div>
+            Spot: <span className="font-mono text-foreground">{formatPrice(latestPrice)}</span>
+          </div>
         </div>
       </div>
 
       {/* Price + MA + VWAP + SuperTrend */}
-      <div style={{ width: "100%", height: 260, overflow: "auto", display: "flex", justifyContent: "center" }}>
-        <ComposedChart data={rows} width={980} height={260} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+      <div
+        style={{
+          width: "100%",
+          height: 260,
+          overflow: "auto",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <ComposedChart
+          data={rows}
+          width={980}
+          height={260}
+          margin={{ top: 8, right: 16, bottom: 4, left: 4 }}
+        >
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
           <YAxis
@@ -173,39 +254,141 @@ export function IndicatorOverlayPanel({ history, prediction }: Props) {
             tickFormatter={(v) => formatPrice(v)}
           />
           <Tooltip
-            contentStyle={{ background: "oklch(0.14 0.02 80)", border: "1px solid oklch(0.28 0.04 80)", borderRadius: 8, fontSize: 11 }}
-            labelFormatter={(v: any) => new Date(Number(v)).toLocaleString()}
-            formatter={(value: any, name: any) => [typeof value === "number" ? formatPrice(value) : String(value), String(name)]}
+            contentStyle={{
+              background: "oklch(0.14 0.02 80)",
+              border: "1px solid oklch(0.28 0.04 80)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+            labelFormatter={(v: number) => new Date(Number(v)).toLocaleString()}
+            formatter={(value: number | string, name: string) => [
+              typeof value === "number" ? formatPrice(value) : String(value),
+              String(name),
+            ]}
           />
           {/* VWAP band */}
-          <Area dataKey="vwapU" stroke="oklch(0.72 0.18 280)" strokeWidth={0.6} strokeDasharray="2 4" fill="oklch(0.72 0.18 280)" fillOpacity={0.06} connectNulls isAnimationActive={false} />
-          <Area dataKey="vwapL" stroke="oklch(0.72 0.18 280)" strokeWidth={0.6} strokeDasharray="2 4" fill="transparent" connectNulls isAnimationActive={false} />
+          <Area
+            dataKey="vwapU"
+            stroke="oklch(0.72 0.18 280)"
+            strokeWidth={0.6}
+            strokeDasharray="2 4"
+            fill="oklch(0.72 0.18 280)"
+            fillOpacity={0.06}
+            connectNulls
+            isAnimationActive={false}
+          />
+          <Area
+            dataKey="vwapL"
+            stroke="oklch(0.72 0.18 280)"
+            strokeWidth={0.6}
+            strokeDasharray="2 4"
+            fill="transparent"
+            connectNulls
+            isAnimationActive={false}
+          />
           {/* MAs */}
-          <Line dataKey="ma20" stroke="oklch(0.78 0.18 130)" strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
-          <Line dataKey="ma50" stroke="oklch(0.75 0.18 60)" strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
+          <Line
+            dataKey="ma20"
+            stroke="oklch(0.78 0.18 130)"
+            strokeWidth={1.2}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
+          <Line
+            dataKey="ma50"
+            stroke="oklch(0.75 0.18 60)"
+            strokeWidth={1.2}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
           {/* VWAP */}
-          <Line dataKey="vwap" stroke="oklch(0.78 0.20 305)" strokeWidth={1.2} strokeDasharray="3 3" dot={false} connectNulls isAnimationActive={false} />
+          <Line
+            dataKey="vwap"
+            stroke="oklch(0.78 0.20 305)"
+            strokeWidth={1.2}
+            strokeDasharray="3 3"
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
           {/* SuperTrend */}
-          <Line dataKey="st" stroke="oklch(0.80 0.22 25)" strokeWidth={1.4} dot={false} connectNulls isAnimationActive={false} />
+          <Line
+            dataKey="st"
+            stroke="oklch(0.80 0.22 25)"
+            strokeWidth={1.4}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
           {/* Actual price on top */}
-          <Line dataKey="price" stroke="oklch(0.85 0.16 85)" strokeWidth={1.8} dot={false} isAnimationActive={false} />
+          <Line
+            dataKey="price"
+            stroke="oklch(0.85 0.16 85)"
+            strokeWidth={1.8}
+            dot={false}
+            isAnimationActive={false}
+          />
         </ComposedChart>
       </div>
 
       {/* MACD subchart */}
-      <div style={{ width: "100%", height: 120, overflow: "auto", display: "flex", justifyContent: "center" }}>
-        <ComposedChart data={rows} width={980} height={120} margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
+      <div
+        style={{
+          width: "100%",
+          height: 120,
+          overflow: "auto",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <ComposedChart
+          data={rows}
+          width={980}
+          height={120}
+          margin={{ top: 4, right: 16, bottom: 4, left: 4 }}
+        >
           <CartesianGrid stroke="oklch(0.28 0.04 80)" strokeOpacity={0.18} vertical={false} />
           <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
-          <YAxis tick={{ fill: "oklch(0.65 0.03 85)", fontSize: 10 }} stroke="oklch(0.28 0.04 80)" width={66} orientation="right" />
+          <YAxis
+            tick={{ fill: "oklch(0.65 0.03 85)", fontSize: 10 }}
+            stroke="oklch(0.28 0.04 80)"
+            width={66}
+            orientation="right"
+          />
           <ReferenceLine y={0} stroke="oklch(0.45 0.03 80)" strokeOpacity={0.6} />
           <Tooltip
-            contentStyle={{ background: "oklch(0.14 0.02 80)", border: "1px solid oklch(0.28 0.04 80)", borderRadius: 8, fontSize: 11 }}
-            labelFormatter={(v: any) => new Date(Number(v)).toLocaleString()}
+            contentStyle={{
+              background: "oklch(0.14 0.02 80)",
+              border: "1px solid oklch(0.28 0.04 80)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+            labelFormatter={(v: number) => new Date(Number(v)).toLocaleString()}
           />
-          <Bar dataKey="macdHist" fill="oklch(0.78 0.20 305)" fillOpacity={0.55} isAnimationActive={false} />
-          <Line dataKey="macd" stroke="oklch(0.85 0.16 85)" strokeWidth={1.4} dot={false} connectNulls isAnimationActive={false} />
-          <Line dataKey="macdSignal" stroke="oklch(0.65 0.24 25)" strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
+          <Bar
+            dataKey="macdHist"
+            fill="oklch(0.78 0.20 305)"
+            fillOpacity={0.55}
+            isAnimationActive={false}
+          />
+          <Line
+            dataKey="macd"
+            stroke="oklch(0.85 0.16 85)"
+            strokeWidth={1.4}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
+          <Line
+            dataKey="macdSignal"
+            stroke="oklch(0.65 0.24 25)"
+            strokeWidth={1.2}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
         </ComposedChart>
       </div>
 
@@ -225,7 +408,12 @@ function FeatureChip({ label, value, good }: { label: string; value: string; goo
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-card">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono font-semibold" style={{ color: good ? "var(--bull)" : "var(--bear)" }}>{value}</span>
+      <span
+        className="font-mono font-semibold"
+        style={{ color: good ? "var(--bull)" : "var(--bear)" }}
+      >
+        {value}
+      </span>
     </div>
   );
 }

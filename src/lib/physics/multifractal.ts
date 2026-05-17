@@ -12,10 +12,10 @@
 
 export interface MultifractalResult {
   h: { q: number; h: number }[]; // generalized Hurst spectrum
-  hurstZero: number;             // h(2) ≈ classical Hurst
-  width: number;                 // Δh = h(q_min) − h(q_max)
+  hurstZero: number; // h(2) ≈ classical Hurst
+  width: number; // Δh = h(q_min) − h(q_max)
   regimeShiftRisk: "low" | "medium" | "high";
-  asymmetry: number;             // h(0) − ½(h(q_min)+h(q_max)); positive ⇒ up-side multifractality
+  asymmetry: number; // h(0) − ½(h(q_min)+h(q_max)); positive ⇒ up-side multifractality
 }
 
 function detrendVariance(profile: number[], scale: number): number {
@@ -26,7 +26,10 @@ function detrendVariance(profile: number[], scale: number): number {
   for (let v = 0; v < segments; v++) {
     const start = v * scale;
     // Linear detrend: fit y = a + b*t, subtract
-    let sumT = 0, sumY = 0, sumTT = 0, sumTY = 0;
+    let sumT = 0,
+      sumY = 0,
+      sumTT = 0,
+      sumTY = 0;
     for (let i = 0; i < scale; i++) {
       sumT += i;
       sumY += profile[start + i];
@@ -50,8 +53,11 @@ export function multifractalSpectrum(prices: number[]): MultifractalResult {
   const n = prices.length;
   if (n < 60) {
     return {
-      h: [{ q: 2, h: 0.5 }], hurstZero: 0.5, width: 0,
-      regimeShiftRisk: "low", asymmetry: 0,
+      h: [{ q: 2, h: 0.5 }],
+      hurstZero: 0.5,
+      width: 0,
+      regimeShiftRisk: "low",
+      asymmetry: 0,
     };
   }
   const r: number[] = [];
@@ -59,12 +65,21 @@ export function multifractalSpectrum(prices: number[]): MultifractalResult {
   const mean = r.reduce((a, b) => a + b, 0) / r.length;
   const profile: number[] = [];
   let cum = 0;
-  for (const x of r) { cum += x - mean; profile.push(cum); }
+  for (const x of r) {
+    cum += x - mean;
+    profile.push(cum);
+  }
 
   const scales: number[] = [];
   for (let s = 8; s <= Math.floor(profile.length / 4); s = Math.floor(s * 1.5)) scales.push(s);
   if (scales.length < 3) {
-    return { h: [{ q: 2, h: 0.5 }], hurstZero: 0.5, width: 0, regimeShiftRisk: "low", asymmetry: 0 };
+    return {
+      h: [{ q: 2, h: 0.5 }],
+      hurstZero: 0.5,
+      width: 0,
+      regimeShiftRisk: "low",
+      asymmetry: 0,
+    };
   }
 
   const qs = [-3, -1, 0.5, 2, 4];
@@ -88,10 +103,14 @@ export function multifractalSpectrum(prices: number[]): MultifractalResult {
       xs.push(Math.log(s));
       ys.push(Math.log(Math.max(1e-18, agg)));
     }
-    if (xs.length < 3) { h.push({ q, h: 0.5 }); continue; }
+    if (xs.length < 3) {
+      h.push({ q, h: 0.5 });
+      continue;
+    }
     const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
     const my = ys.reduce((a, b) => a + b, 0) / ys.length;
-    let num = 0, den = 0;
+    let num = 0,
+      den = 0;
     for (let i = 0; i < xs.length; i++) {
       num += (xs[i] - mx) * (ys[i] - my);
       den += (xs[i] - mx) * (xs[i] - mx);

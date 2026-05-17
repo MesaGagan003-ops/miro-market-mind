@@ -32,21 +32,21 @@ export interface MarketPhysicsProfile {
 }
 
 const CRYPTO: MarketPhysicsProfile = {
-  kalmanRScale: 1.4,           // crypto ticks are noisy → stronger denoise
-  jumpDriftWeight: 0.55,       // jumps materially shift expected price
-  hawkesEnabled: true,         // liquidation cascades are real
+  kalmanRScale: 1.4, // crypto ticks are noisy → stronger denoise
+  jumpDriftWeight: 0.55, // jumps materially shift expected price
+  hawkesEnabled: true, // liquidation cascades are real
   hawkesPenaltyMax: 0.12,
   waveletSmoothing: 0.6,
-  multifractalPenaltyMax: 0.10,
-  transferEntropyWeight: 0.20,
+  multifractalPenaltyMax: 0.1,
+  transferEntropyWeight: 0.2,
   neuralWeight: 0.12,
   fokkerPlanckOverlay: true,
 };
 
 const EQUITY: MarketPhysicsProfile = {
-  kalmanRScale: 0.8,           // exchange ticks are clean
-  jumpDriftWeight: 0.30,
-  hawkesEnabled: false,        // no liquidation chains in normal trading
+  kalmanRScale: 0.8, // exchange ticks are clean
+  jumpDriftWeight: 0.3,
+  hawkesEnabled: false, // no liquidation chains in normal trading
   hawkesPenaltyMax: 0,
   waveletSmoothing: 0.45,
   multifractalPenaltyMax: 0.08,
@@ -57,22 +57,26 @@ const EQUITY: MarketPhysicsProfile = {
 
 const FOREX: MarketPhysicsProfile = {
   kalmanRScale: 1.0,
-  jumpDriftWeight: 0.25,       // FX jumps are smaller (central-bank events)
-  hawkesEnabled: true,         // events DO cluster (rate decisions, NFP)
+  jumpDriftWeight: 0.25, // FX jumps are smaller (central-bank events)
+  hawkesEnabled: true, // events DO cluster (rate decisions, NFP)
   hawkesPenaltyMax: 0.08,
   waveletSmoothing: 0.55,
   multifractalPenaltyMax: 0.06,
-  transferEntropyWeight: 0.25,  // FX has strong cross-pair info flow
-  neuralWeight: 0.10,
+  transferEntropyWeight: 0.25, // FX has strong cross-pair info flow
+  neuralWeight: 0.1,
   fokkerPlanckOverlay: true,
 };
 
 export function getMarketProfile(market: MarketKind): MarketPhysicsProfile {
   switch (market) {
-    case "crypto": return CRYPTO;
+    case "crypto":
+      return CRYPTO;
     case "nse":
-    case "bse": return EQUITY;
-    case "forex": return FOREX;
-    default: return CRYPTO;
+    case "bse":
+      return EQUITY;
+    case "forex":
+      return FOREX;
+    default:
+      return CRYPTO;
   }
 }

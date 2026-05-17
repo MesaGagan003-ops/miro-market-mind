@@ -9,8 +9,8 @@ export interface GarchResult {
   omega: number;
   alpha: number;
   beta: number;
-  sigma: number;        // current 1-step sigma in PRICE units
-  sigmaReturn: number;  // current 1-step sigma in LOG-RETURN units (scale-free)
+  sigma: number; // current 1-step sigma in PRICE units
+  sigmaReturn: number; // current 1-step sigma in LOG-RETURN units (scale-free)
   longRunVar: number;
   forecastSigma: (steps: number) => number[]; // per-step sigma horizon (price units)
 }
@@ -18,7 +18,12 @@ export interface GarchResult {
 export function fitGarch11(prices: number[]): GarchResult {
   if (prices.length < 20) {
     return {
-      omega: 0, alpha: 0.05, beta: 0.92, sigma: 0, sigmaReturn: 0, longRunVar: 0,
+      omega: 0,
+      alpha: 0.05,
+      beta: 0.92,
+      sigma: 0,
+      sigmaReturn: 0,
+      longRunVar: 0,
       forecastSigma: (steps) => Array(steps).fill(0),
     };
   }
@@ -42,7 +47,10 @@ export function fitGarch11(prices: number[]): GarchResult {
       let ll = 0;
       for (let i = 0; i < eps.length; i++) {
         s2 = omega + alpha * eps[i] * eps[i] + beta * s2;
-        if (s2 <= 0) { ll = -Infinity; break; }
+        if (s2 <= 0) {
+          ll = -Infinity;
+          break;
+        }
         ll += -0.5 * (Math.log(2 * Math.PI * s2) + (eps[i] * eps[i]) / s2);
       }
       if (ll > best.ll) best = { ll, alpha, beta, omega };
@@ -69,5 +77,13 @@ export function fitGarch11(prices: number[]): GarchResult {
     return out;
   };
 
-  return { omega: best.omega, alpha: best.alpha, beta: best.beta, sigma, sigmaReturn, longRunVar, forecastSigma };
+  return {
+    omega: best.omega,
+    alpha: best.alpha,
+    beta: best.beta,
+    sigma,
+    sigmaReturn,
+    longRunVar,
+    forecastSigma,
+  };
 }

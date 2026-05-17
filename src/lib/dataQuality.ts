@@ -61,10 +61,5 @@ export function isReadyForTrading(
   // 2. Decent accuracy (>54%)
   // 3. Low Brier (<0.24)
   // 4. Enough trained samples (>80)
-  return (
-    dataQuality.score > 0.6 &&
-    recentAccuracy > 0.54 &&
-    recentBrier < 0.24 &&
-    sampleCount > 80
-  );
+  return dataQuality.score > 0.6 && recentAccuracy > 0.54 && recentBrier < 0.24 && sampleCount > 80;
 }

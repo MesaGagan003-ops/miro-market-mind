@@ -82,10 +82,10 @@ interface Props {
 // further than NSE equities or major FX in the same wall-clock window, so a
 // "2σ stop" means very different things across markets.
 const MARKET_RISK: Record<string, { slMult: number; tpMult: number; minBps: number }> = {
-  crypto: { slMult: 1.8, tpMult: 3.0, minBps: 25 },   // 0.25% min stop
-  nse:    { slMult: 1.4, tpMult: 2.4, minBps: 35 },   // 0.35% min stop (slower)
-  bse:    { slMult: 1.4, tpMult: 2.4, minBps: 35 },
-  forex:  { slMult: 1.2, tpMult: 2.0, minBps: 8  },   // 8 bps ~ typical FX stop
+  crypto: { slMult: 1.8, tpMult: 3.0, minBps: 25 }, // 0.25% min stop
+  nse: { slMult: 1.4, tpMult: 2.4, minBps: 35 }, // 0.35% min stop (slower)
+  bse: { slMult: 1.4, tpMult: 2.4, minBps: 35 },
+  forex: { slMult: 1.2, tpMult: 2.0, minBps: 8 }, // 8 bps ~ typical FX stop
 };
 
 export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Props) {
@@ -109,7 +109,7 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     setEntry(currentPrice || 0);
     setCustomSL(null);
     setCustomTP(null);
-  }, [coin.market, coin.symbol]);
+  }, [coin.market, coin.symbol, currentPrice]);
 
   useEffect(() => {
     if (currentPrice > 0) setEntry((e) => (e === 0 ? currentPrice : e));
@@ -150,7 +150,7 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
   const slDist = Math.max(atr * risk.slMult, minMove);
   const tpDist = Math.max(atr * risk.tpMult, minMove * 1.6);
   const suggestedStop = direction === "long" ? entry - slDist : entry + slDist;
-  const suggestedTp   = direction === "long" ? entry + tpDist : entry - tpDist;
+  const suggestedTp = direction === "long" ? entry + tpDist : entry - tpDist;
   const stop = customSL ?? suggestedStop;
   const tp = customTP ?? suggestedTp;
   const riskU = entry > 0 ? size * lev * (Math.abs(entry - stop) / entry) : 0;
@@ -170,7 +170,9 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     if (entry <= 0 || size <= 0) return;
     const pos: Position = {
       id: Date.now(),
-      pair: coin.symbol.toUpperCase().includes("/") ? coin.symbol.toUpperCase() : coin.symbol.toUpperCase(),
+      pair: coin.symbol.toUpperCase().includes("/")
+        ? coin.symbol.toUpperCase()
+        : coin.symbol.toUpperCase(),
       dir: direction,
       entry,
       size,
@@ -234,10 +236,11 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     const avgL = Math.abs(losses.reduce((a, b) => a + b, 0)) / Math.max(1, losses.length);
     const pf = avgL > 0 ? (avgW * wins.length) / (avgL * losses.length) : 0;
     const mean = pnls.reduce((a, b) => a + b, 0) / pnls.length;
-    const std =
-      Math.sqrt(pnls.reduce((a, b) => a + (b - mean) ** 2, 0) / pnls.length) || 1;
+    const std = Math.sqrt(pnls.reduce((a, b) => a + (b - mean) ** 2, 0) / pnls.length) || 1;
     const sharpe = (mean / std) * Math.sqrt(pnls.length);
-    let peak = 0, dd = 0, cum = 0;
+    let peak = 0,
+      dd = 0,
+      cum = 0;
     for (const p of pnls.slice().reverse()) {
       cum += p;
       peak = Math.max(peak, cum);
@@ -256,9 +259,7 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
     <div className="panel p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <h3 className="font-display font-semibold text-foreground text-sm">
-            Demo Trade
-          </h3>
+          <h3 className="font-display font-semibold text-foreground text-sm">Demo Trade</h3>
           <span className="text-[10px] uppercase tracking-wider text-primary font-mono">
             {coin.symbol.toUpperCase()}
           </span>
@@ -276,7 +277,9 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
 
       {/* Direction */}
       <div>
-        <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Direction</div>
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
+          Direction
+        </div>
         <div className="flex gap-1">
           <button
             onClick={() => setDirection("long")}
@@ -284,7 +287,11 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
             style={
               isLong
                 ? { background: "hsl(142 76% 50% / 0.15)", borderColor: colorOk, color: colorOk }
-                : { background: "transparent", borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                : {
+                    background: "transparent",
+                    borderColor: "hsl(var(--border))",
+                    color: "hsl(var(--muted-foreground))",
+                  }
             }
           >
             LONG
@@ -295,7 +302,11 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
             style={
               !isLong
                 ? { background: "hsl(0 84% 60% / 0.15)", borderColor: colorBad, color: colorBad }
-                : { background: "transparent", borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                : {
+                    background: "transparent",
+                    borderColor: "hsl(var(--border))",
+                    color: "hsl(var(--muted-foreground))",
+                  }
             }
           >
             SHORT
@@ -311,11 +322,15 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
         </div>
         <div className="flex justify-between text-muted-foreground">
           <span>Market Risk:</span>
-          <span className="font-mono font-bold text-foreground">{risk.slMult.toFixed(1)}σ SL · {risk.tpMult.toFixed(1)}σ TP · {risk.minBps} bps min</span>
+          <span className="font-mono font-bold text-foreground">
+            {risk.slMult.toFixed(1)}σ SL · {risk.tpMult.toFixed(1)}σ TP · {risk.minBps} bps min
+          </span>
         </div>
         <div className="flex justify-between text-muted-foreground">
           <span>Suggested SL/TP:</span>
-          <span className="font-mono font-bold text-foreground">{fmtPrice(suggestedStop)} / {fmtPrice(suggestedTp)}</span>
+          <span className="font-mono font-bold text-foreground">
+            {fmtPrice(suggestedStop)} / {fmtPrice(suggestedTp)}
+          </span>
         </div>
       </div>
 
@@ -330,7 +345,9 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
       <div className="grid grid-cols-2 gap-2">
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Stop Loss</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+              Stop Loss
+            </span>
             <button
               onClick={() => setCustomSL(null)}
               className="text-[9px] uppercase tracking-wider text-primary/70 hover:text-primary"
@@ -350,7 +367,9 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
         </div>
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Take Profit</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+              Take Profit
+            </span>
             <button
               onClick={() => setCustomTP(null)}
               className="text-[9px] uppercase tracking-wider text-primary/70 hover:text-primary"
@@ -372,10 +391,26 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
 
       {/* Risk box */}
       <div className="grid grid-cols-2 gap-1 p-2 rounded border border-border bg-card text-[10px]">
-        <div><span className="text-muted-foreground">Risk: </span><span className="font-bold" style={{ color: colorBad }}>${riskU.toFixed(2)}</span></div>
-        <div><span className="text-muted-foreground">Reward: </span><span className="font-bold" style={{ color: colorOk }}>${rewardU.toFixed(2)}</span></div>
-        <div><span className="text-muted-foreground">R:R: </span><span className="text-primary font-bold">{rrRatio.toFixed(2)}</span></div>
-        <div><span className="text-muted-foreground">Kelly: </span><span className="text-primary font-bold">{(kelly * 100).toFixed(1)}%</span></div>
+        <div>
+          <span className="text-muted-foreground">Risk: </span>
+          <span className="font-bold" style={{ color: colorBad }}>
+            ${riskU.toFixed(2)}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Reward: </span>
+          <span className="font-bold" style={{ color: colorOk }}>
+            ${rewardU.toFixed(2)}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">R:R: </span>
+          <span className="text-primary font-bold">{rrRatio.toFixed(2)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Kelly: </span>
+          <span className="text-primary font-bold">{(kelly * 100).toFixed(1)}%</span>
+        </div>
       </div>
 
       <button
@@ -407,7 +442,9 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
       {tab === "pos" && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {acct.positions.length === 0 && (
-            <div className="text-center text-[10px] text-muted-foreground py-4">No open positions</div>
+            <div className="text-center text-[10px] text-muted-foreground py-4">
+              No open positions
+            </div>
           )}
           {acct.positions.map((p) => {
             const dirSign = p.dir === "short" ? -1 : 1;
@@ -420,7 +457,8 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
                   <span
                     className="px-1.5 rounded text-[9px] font-bold"
                     style={{
-                      background: p.dir === "long" ? "hsl(142 76% 50% / 0.2)" : "hsl(0 84% 60% / 0.2)",
+                      background:
+                        p.dir === "long" ? "hsl(142 76% 50% / 0.2)" : "hsl(0 84% 60% / 0.2)",
                       color: p.dir === "long" ? colorOk : colorBad,
                     }}
                   >
@@ -428,10 +466,18 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1">
-                  <div className="text-muted-foreground">Entry <span className="text-foreground">${fmtPrice(p.entry)}</span></div>
-                  <div className="text-muted-foreground">Now <span className="text-foreground">${fmtPrice(currentPrice)}</span></div>
-                  <div className="text-muted-foreground">Stop <span className="text-foreground">${fmtPrice(p.stop)}</span></div>
-                  <div className="text-muted-foreground">TP <span className="text-foreground">${fmtPrice(p.tp)}</span></div>
+                  <div className="text-muted-foreground">
+                    Entry <span className="text-foreground">${fmtPrice(p.entry)}</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    Now <span className="text-foreground">${fmtPrice(currentPrice)}</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    Stop <span className="text-foreground">${fmtPrice(p.stop)}</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    TP <span className="text-foreground">${fmtPrice(p.tp)}</span>
+                  </div>
                 </div>
                 <div className="flex justify-between items-center mt-1.5">
                   <span className="text-[9px] text-muted-foreground">{p.time}</span>
@@ -457,10 +503,16 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
             <div className="text-center text-[10px] text-muted-foreground py-4">No trades yet</div>
           ) : (
             acct.trades.map((t, i) => (
-              <div key={i} className="flex justify-between py-1.5 border-b border-border text-[10px]">
+              <div
+                key={i}
+                className="flex justify-between py-1.5 border-b border-border text-[10px]"
+              >
                 <span className="text-muted-foreground">{t.time}</span>
                 <span>{t.pair}</span>
-                <span style={{ color: t.dir === "long" ? colorOk : colorBad }} className="font-bold">
+                <span
+                  style={{ color: t.dir === "long" ? colorOk : colorBad }}
+                  className="font-bold"
+                >
                   {t.dir[0].toUpperCase()}
                 </span>
                 <span style={{ color: t.pnl >= 0 ? colorOk : colorBad }} className="font-bold">
@@ -493,9 +545,21 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
 
       {/* Account bar */}
       <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border">
-        <Stat label="Balance" value={`$${acct.balance.toFixed(2)}`} color={acct.balance >= 10000 ? colorOk : colorBad} />
-        <Stat label="Unrealized P&L" value={`${unrealized >= 0 ? "+" : ""}$${Math.abs(unrealized).toFixed(2)}`} color={unrealized >= 0 ? colorOk : colorBad} />
-        <Stat label="Realized P&L" value={`${acct.realPnl >= 0 ? "+" : ""}$${Math.abs(acct.realPnl).toFixed(2)}`} color={acct.realPnl >= 0 ? colorOk : colorBad} />
+        <Stat
+          label="Balance"
+          value={`$${acct.balance.toFixed(2)}`}
+          color={acct.balance >= 10000 ? colorOk : colorBad}
+        />
+        <Stat
+          label="Unrealized P&L"
+          value={`${unrealized >= 0 ? "+" : ""}$${Math.abs(unrealized).toFixed(2)}`}
+          color={unrealized >= 0 ? colorOk : colorBad}
+        />
+        <Stat
+          label="Realized P&L"
+          value={`${acct.realPnl >= 0 ? "+" : ""}$${Math.abs(acct.realPnl).toFixed(2)}`}
+          color={acct.realPnl >= 0 ? colorOk : colorBad}
+        />
         <Stat label="Total Trades" value={acct.totalTrades.toString()} />
       </div>
     </div>
@@ -503,10 +567,19 @@ export function DemoTrading({ coin, currentPrice, prediction, recentPrices }: Pr
 }
 
 function NumField({
-  label, value, onChange, min, max, step,
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
 }: {
-  label: string; value: number; onChange: (v: number) => void;
-  min?: number; max?: number; step?: number | "any";
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number | "any";
 }) {
   return (
     <div>
@@ -528,7 +601,9 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
   return (
     <div className="rounded bg-card p-2">
       <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="font-bold text-sm" style={{ color: color ?? "hsl(var(--foreground))" }}>{value}</div>
+      <div className="font-bold text-sm" style={{ color: color ?? "hsl(var(--foreground))" }}>
+        {value}
+      </div>
     </div>
   );
 }

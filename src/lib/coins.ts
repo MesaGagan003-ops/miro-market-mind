@@ -22,7 +22,9 @@ const fetchBinanceUsdtBases = createServerFn({ method: "GET" }).handler(async ()
     headers: { "User-Agent": "QuantumEdge/1.0" },
   });
   if (!res.ok) return [] as string[];
-  const data = (await res.json()) as { symbols?: Array<{ status: string; quoteAsset: string; baseAsset: string }> };
+  const data = (await res.json()) as {
+    symbols?: Array<{ status: string; quoteAsset: string; baseAsset: string }>;
+  };
   const out: string[] = [];
   for (const s of data.symbols ?? []) {
     if (s.status === "TRADING" && s.quoteAsset === "USDT") {
@@ -35,7 +37,9 @@ const fetchBinanceUsdtBases = createServerFn({ method: "GET" }).handler(async ()
 export async function loadAllCoins(): Promise<Coin[]> {
   if (coinCache) return coinCache;
   const [list, binArr] = await Promise.all([
-    fetch("https://api.coingecko.com/api/v3/coins/list").then((r) => r.json()).catch(() => []),
+    fetch("https://api.coingecko.com/api/v3/coins/list")
+      .then((r) => r.json())
+      .catch(() => []),
     fetchBinanceUsdtBases().catch(() => [] as string[]),
   ]);
   const binSet = new Set<string>(binArr);

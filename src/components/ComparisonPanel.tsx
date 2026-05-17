@@ -21,11 +21,56 @@ interface Props {
 
 type RangeKey = "1h" | "1w" | "1mo" | "1y";
 
-const RANGES: Array<{ key: RangeKey; label: string; interval: string; range: string; predictFraction: number; binanceInterval: string; binanceLimit: number; forexLimit: number }> = [
-  { key: "1h", label: "1 hour", interval: "1m", range: "1d", predictFraction: 0.25, binanceInterval: "1m", binanceLimit: 60, forexLimit: 60 },
-  { key: "1w", label: "1 week", interval: "15m", range: "1mo", predictFraction: 0.2, binanceInterval: "15m", binanceLimit: 700, forexLimit: 200 },
-  { key: "1mo", label: "1 month", interval: "1h", range: "3mo", predictFraction: 0.2, binanceInterval: "1h", binanceLimit: 720, forexLimit: 365 },
-  { key: "1y", label: "1 year", interval: "1d", range: "5y", predictFraction: 0.2, binanceInterval: "1d", binanceLimit: 365, forexLimit: 365 },
+const RANGES: Array<{
+  key: RangeKey;
+  label: string;
+  interval: string;
+  range: string;
+  predictFraction: number;
+  binanceInterval: string;
+  binanceLimit: number;
+  forexLimit: number;
+}> = [
+  {
+    key: "1h",
+    label: "1 hour",
+    interval: "1m",
+    range: "1d",
+    predictFraction: 0.25,
+    binanceInterval: "1m",
+    binanceLimit: 60,
+    forexLimit: 60,
+  },
+  {
+    key: "1w",
+    label: "1 week",
+    interval: "15m",
+    range: "1mo",
+    predictFraction: 0.2,
+    binanceInterval: "15m",
+    binanceLimit: 700,
+    forexLimit: 200,
+  },
+  {
+    key: "1mo",
+    label: "1 month",
+    interval: "1h",
+    range: "3mo",
+    predictFraction: 0.2,
+    binanceInterval: "1h",
+    binanceLimit: 720,
+    forexLimit: 365,
+  },
+  {
+    key: "1y",
+    label: "1 year",
+    interval: "1d",
+    range: "5y",
+    predictFraction: 0.2,
+    binanceInterval: "1d",
+    binanceLimit: 365,
+    forexLimit: 365,
+  },
 ];
 
 interface Row {
@@ -54,23 +99,39 @@ export function ComparisonPanel({ coin }: Props) {
         if (coin.market === "crypto" && coin.binanceSymbol) {
           try {
             hist = await fetchBinanceKlines({
-              data: { symbol: coin.binanceSymbol, interval: cfg.binanceInterval, limit: cfg.binanceLimit },
+              data: {
+                symbol: coin.binanceSymbol,
+                interval: cfg.binanceInterval,
+                limit: cfg.binanceLimit,
+              },
             });
-          } catch { /* fall through */ }
+          } catch {
+            /* fall through */
+          }
           if (hist.length < 30) {
             const sym = coin.yahooSymbol || `${coin.symbol.toUpperCase()}-USD`;
             try {
-              hist = await fetchYahooHistory({ data: { symbol: sym, interval: cfg.interval, range: cfg.range } });
-            } catch { /* ignore */ }
+              hist = await fetchYahooHistory({
+                data: { symbol: sym, interval: cfg.interval, range: cfg.range },
+              });
+            } catch {
+              /* ignore */
+            }
           }
         } else if (coin.market === "forex") {
           const base = coin.forexBase ?? coin.symbol.slice(0, 3).toUpperCase();
           const quote = coin.forexQuote ?? coin.symbol.slice(3, 6).toUpperCase() ?? "USD";
           try {
-            hist = await fetchForexHistory({ data: { base, quote, limit: cfg.forexLimit, mode: "free", premiumApiKey: "" } });
-          } catch { /* fall through */ }
+            hist = await fetchForexHistory({
+              data: { base, quote, limit: cfg.forexLimit, mode: "free", premiumApiKey: "" },
+            });
+          } catch {
+            /* fall through */
+          }
           if (hist.length < 30 && coin.yahooSymbol) {
-            hist = await fetchYahooHistory({ data: { symbol: coin.yahooSymbol, interval: cfg.interval, range: cfg.range } });
+            hist = await fetchYahooHistory({
+              data: { symbol: coin.yahooSymbol, interval: cfg.interval, range: cfg.range },
+            });
           }
         } else {
           const symbolCandidates = buildYahooCandidates(coin);
@@ -83,7 +144,9 @@ export function ComparisonPanel({ coin }: Props) {
           ];
           for (const symbol of symbolCandidates) {
             for (const req of requestPlan) {
-              hist = await fetchYahooHistory({ data: { symbol, interval: req.interval, range: req.range } });
+              hist = await fetchYahooHistory({
+                data: { symbol, interval: req.interval, range: req.range },
+              });
               if (hist.length > 30) break;
             }
             if (hist.length > 30) break;
@@ -93,7 +156,9 @@ export function ComparisonPanel({ coin }: Props) {
         if (cancelled) return;
         if (!hist.length) {
           setRows([]);
-          setError("No historical data returned for this asset yet. Try a different range or asset.");
+          setError(
+            "No historical data returned for this asset yet. Try a different range or asset.",
+          );
           setLoading(false);
           return;
         }
@@ -134,7 +199,7 @@ export function ComparisonPanel({ coin }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [coin.id, coin.market, coin.symbol, coin.yahooSymbol, range]);
+  }, [coin, range]);
 
   const stats = useMemo(() => {
     const valid = rows.filter((r) => r.actual != null && r.predicted != null);
@@ -149,7 +214,9 @@ export function ComparisonPanel({ coin }: Props) {
       if (Math.sign(dA) === Math.sign(dP)) directionHits++;
       directionTotal++;
       sumAbs += Math.abs((valid[i].actual ?? 0) - (valid[i].predicted ?? 0));
-      sumPct += Math.abs(((valid[i].actual ?? 0) - (valid[i].predicted ?? 0)) / Math.max(1e-9, valid[i].actual ?? 1));
+      sumPct += Math.abs(
+        ((valid[i].actual ?? 0) - (valid[i].predicted ?? 0)) / Math.max(1e-9, valid[i].actual ?? 1),
+      );
     }
     return {
       mae: sumAbs / valid.length,
@@ -164,7 +231,8 @@ export function ComparisonPanel({ coin }: Props) {
         <div>
           <h3 className="font-display font-semibold text-sm">Actual vs Predicted</h3>
           <p className="text-[10px] text-muted-foreground">
-            Backtest: train on the first portion, forecast the last {RANGES.find((r) => r.key === range)?.predictFraction! * 100}% and compare.
+            Backtest: train on the first portion, forecast the last{" "}
+            {(RANGES.find((r) => r.key === range)?.predictFraction ?? 0) * 100}% and compare.
           </p>
         </div>
         <div className="flex gap-1">
@@ -188,7 +256,10 @@ export function ComparisonPanel({ coin }: Props) {
         <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
           <Stat label="Direction acc." value={`${stats.dirAcc.toFixed(1)}%`} />
           <Stat label="MAPE" value={`${stats.mape.toFixed(2)}%`} />
-          <Stat label="MAE" value={stats.mae < 1 ? stats.mae.toExponential(2) : stats.mae.toFixed(2)} />
+          <Stat
+            label="MAE"
+            value={stats.mae < 1 ? stats.mae.toExponential(2) : stats.mae.toFixed(2)}
+          />
         </div>
       )}
 
@@ -199,45 +270,76 @@ export function ComparisonPanel({ coin }: Props) {
             Loading historical data…
           </div>
         ) : error ? (
-          <div className="h-full flex items-center justify-center text-xs text-destructive">{error}</div>
+          <div className="h-full flex items-center justify-center text-xs text-destructive">
+            {error}
+          </div>
         ) : rows.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No data.</div>
+          <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+            No data.
+          </div>
         ) : (
           <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
             <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-              <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
-              <XAxis
-                dataKey="ts"
-                tickFormatter={(v) => {
-                  const d = new Date(v);
-                  if (range === "1h") return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-                  if (range === "1w") return d.toLocaleDateString([], { month: "short", day: "numeric" });
-                  if (range === "1mo") return d.toLocaleDateString([], { month: "short", day: "numeric" });
-                  return d.toLocaleDateString([], { month: "short", year: "2-digit" });
-                }}
-                tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
-              />
-              <YAxis
-                domain={["auto", "auto"]}
-                tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
-                width={56}
-                tickFormatter={(v) => (v < 1 ? Number(v).toExponential(1) : Number(v).toFixed(2))}
-              />
-              <Tooltip
-                labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
-                formatter={(value) => {
-                  const n = Number(value);
-                  if (!Number.isFinite(n)) return "—";
-                  return n < 1 ? n.toExponential(3) : n.toFixed(4);
-                }}
-                contentStyle={{ background: "oklch(0.18 0.04 265)", border: "1px solid oklch(0.28 0.04 265)", fontSize: 11 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="linear" dataKey="actual" name="Actual" stroke="var(--bull)" dot={false} strokeWidth={1.6} />
-              <Line type="linear" dataKey="predicted" name="Predicted" stroke="var(--quantum)" dot={false} strokeWidth={1.6} strokeDasharray="4 3" connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
+              <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                <CartesianGrid stroke="oklch(0.28 0.04 265)" strokeOpacity={0.3} />
+                <XAxis
+                  dataKey="ts"
+                  tickFormatter={(v) => {
+                    const d = new Date(v);
+                    if (range === "1h")
+                      return d.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      });
+                    if (range === "1w")
+                      return d.toLocaleDateString([], { month: "short", day: "numeric" });
+                    if (range === "1mo")
+                      return d.toLocaleDateString([], { month: "short", day: "numeric" });
+                    return d.toLocaleDateString([], { month: "short", year: "2-digit" });
+                  }}
+                  tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+                />
+                <YAxis
+                  domain={["auto", "auto"]}
+                  tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
+                  width={56}
+                  tickFormatter={(v) => (v < 1 ? Number(v).toExponential(1) : Number(v).toFixed(2))}
+                />
+                <Tooltip
+                  labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
+                  formatter={(value) => {
+                    const n = Number(value);
+                    if (!Number.isFinite(n)) return "—";
+                    return n < 1 ? n.toExponential(3) : n.toFixed(4);
+                  }}
+                  contentStyle={{
+                    background: "oklch(0.18 0.04 265)",
+                    border: "1px solid oklch(0.28 0.04 265)",
+                    fontSize: 11,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line
+                  type="linear"
+                  dataKey="actual"
+                  name="Actual"
+                  stroke="var(--bull)"
+                  dot={false}
+                  strokeWidth={1.6}
+                />
+                <Line
+                  type="linear"
+                  dataKey="predicted"
+                  name="Predicted"
+                  stroke="var(--quantum)"
+                  dot={false}
+                  strokeWidth={1.6}
+                  strokeDasharray="4 3"
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>

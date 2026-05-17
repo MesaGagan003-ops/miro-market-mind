@@ -516,8 +516,6 @@ function PredictionEngine() {
                 }
               />
               <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                <CoinPicker value={coin} onChange={setCoin} />
-                <TimeframePicker value={timeframe} onChange={setTimeframe} />
                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1">
                   <span className="live-dot" />
                   <span>

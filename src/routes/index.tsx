@@ -32,7 +32,6 @@ import { fetchDeepHistory } from "@/lib/deepHistory";
 import { CalibrationPanel } from "@/components/CalibrationPanel";
 import { WalkForwardPanel } from "@/components/WalkForwardPanel";
 import { DeepHistoryBacktestPanel } from "@/components/DeepHistoryBacktestPanel";
-import { PerformanceTable } from "@/components/PerformanceTable";
 import { DisclaimerModal, DisclaimerBanner, DisclaimerFooter } from "@/components/Disclaimer";
 import { TradingReadinessAlert } from "@/components/TradingReadinessAlert";
 import { IndicatorOverlayPanel } from "@/components/IndicatorOverlayPanel";
@@ -638,7 +637,6 @@ function PredictionEngine() {
                 <div className="space-y-4 min-w-0">
                   <WalkForwardPanel coin={coin} />
                   <DeepHistoryBacktestPanel coin={coin} />
-                  <PerformanceTable />
                 </div>
               </div>
             </div>

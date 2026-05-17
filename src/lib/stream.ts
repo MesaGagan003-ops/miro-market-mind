@@ -53,6 +53,8 @@ export function subscribeBinance(symbol: string, onTick: TickHandler, opts?: Str
   };
 }
 
+const YAHOO_POLL_MS = 30_000;
+
 export function subscribeCoinGecko(coinId: string, onTick: TickHandler, opts?: StreamOptions): () => void {
   let stopped = false;
   const poll = async () => {
@@ -136,7 +138,7 @@ function subscribeYahoo(symbol: string, onTick: TickHandler, opts?: StreamOption
         } catch {}
         console.error("[subscribeYahoo] error", e);
       }
-      await new Promise((r) => setTimeout(r, 5000));
+      await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
     }
   };
   poll();

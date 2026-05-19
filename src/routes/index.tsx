@@ -39,6 +39,7 @@ import { fetchCoinNews } from "@/lib/news";
 import { getDecayedLlmSignal, peekDecayedSignal } from "@/lib/llmCache";
 import { StrategicPlanPanel } from "@/components/StrategicPlanPanel";
 import { TechnicalIndicatorMetrics } from "@/components/TechnicalIndicatorMetrics";
+import { PredictionHistoryPanel } from "@/components/PredictionHistoryPanel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -735,6 +736,10 @@ function PredictionEngine() {
                 prediction={prediction}
                 recentPrices={modelSeries}
               />
+            </div>
+
+            <div className="xl:col-span-2 min-w-0">
+              <PredictionHistoryPanel />
             </div>
           </div>
         </section>

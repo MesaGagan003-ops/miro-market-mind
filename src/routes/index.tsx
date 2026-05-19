@@ -578,23 +578,7 @@ function PredictionEngine() {
                   ) : null
                 }
               />
-              <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1">
-                  <span className="live-dot" />
-                  <span>
-                    {coin.market === "crypto"
-                      ? coin.binanceSymbol
-                        ? "Binance tick"
-                        : "CoinGecko poll"
-                      : coin.market === "forex"
-                        ? "Forex feed"
-                        : "Yahoo Finance"}
-                  </span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {currentPrice > 0 ? `$${formatLive(currentPrice)}` : "—"}
-                  </span>
-                </span>
-              </div>
+              {/* Duplicate live-source badge removed (already shown in header) */}
               {prediction && currentPrice > 0 ? (
                 <PredictionChart
                   history={ticks.slice(-240).map((t) => ({ ts: t.ts, price: t.price }))}

@@ -379,7 +379,62 @@ function PredictionEngine() {
           console.error("hybrid worker error:", error);
           return;
         }
-        setPrediction(result);
+        // Debug log the raw worker payload for diagnosis
+        // eslint-disable-next-line no-console
+        console.debug("hybrid-worker payload:", result);
+
+        // Normalize payload to ensure UI consumers don't read undefined
+        const normalized = {
+          forecast: result?.forecast ?? [],
+          finalPrice: result?.finalPrice ?? 0,
+          direction: result?.direction ?? "flat",
+          currentSignal: result?.currentSignal ?? "hold",
+          futureSignal: result?.futureSignal ?? "hold",
+          hybridConfidence: result?.hybridConfidence ?? 0.6,
+          weights: result?.weights ?? {},
+          garch: {
+            sigma: result?.garch?.sigma ?? 0,
+            sigmaReturn: result?.garch?.sigmaReturn ?? 0,
+          },
+          kalman: { snr: result?.kalman?.snr ?? 0, velocity: result?.kalman?.velocity ?? 0 },
+          jump: {
+            lambda: result?.jump?.lambda ?? 0,
+            jumpFraction: result?.jump?.jumpFraction ?? 0,
+            pUp: result?.jump?.pUp ?? 0,
+            recentJump: result?.jump?.recentJump ?? null,
+          },
+          hawkes: {
+            branching: result?.hawkes?.branching ?? 0,
+            currentIntensity: result?.hawkes?.currentIntensity ?? 0,
+            cascadeProbability: result?.hawkes?.cascadeProbability ?? 0,
+            isClusterRegime: result?.hawkes?.isClusterRegime ?? false,
+          },
+          wavelet: { dominantScale: result?.wavelet?.dominantScale ?? 0, trendSlope: result?.wavelet?.trendSlope ?? 0 },
+          transferEntropy: { selfTE: result?.transferEntropy?.selfTE ?? 0, crossTE: result?.transferEntropy?.crossTE ?? 0 },
+          multifractal: { width: result?.multifractal?.width ?? 0, regimeShiftRisk: result?.multifractal?.regimeShiftRisk ?? "low" },
+          fokkerPlanck: { mean: result?.fokkerPlanck?.mean ?? 0, bands: result?.fokkerPlanck?.bands ?? [] },
+          indicators: { bias: result?.indicators?.bias ?? 0 },
+          entropy: { H: result?.entropy?.H ?? 0, edge: result?.entropy?.edge ?? 0, upRatio: result?.entropy?.upRatio ?? 0 },
+          arima: {
+            c: result?.arima?.c ?? 0,
+            phi: result?.arima?.phi ?? 0,
+            phi2: result?.arima?.phi2 ?? 0,
+            theta: result?.arima?.theta ?? 0,
+            driftPerStep: result?.arima?.driftPerStep ?? 0,
+            residualStd: result?.arima?.residualStd ?? 0,
+          },
+          hamiltonian: { H: result?.hamiltonian?.H ?? 0, KE: result?.hamiltonian?.KE ?? 0, PE: result?.hamiltonian?.PE ?? 0, velocity: result?.hamiltonian?.velocity ?? 0 },
+          hmm: {
+            dominantState: result?.hmm?.dominantState ?? 1,
+            stateProbs: result?.hmm?.stateProbs ?? [0.33, 0.34, 0.33],
+            transitionMatrix: result?.hmm?.transitionMatrix ?? [[0.7,0.2,0.1],[0.2,0.6,0.2],[0.1,0.2,0.7]],
+            emIterations: result?.hmm?.emIterations ?? 0,
+            logLik: result?.hmm?.logLik ?? 0,
+            viterbiSamples: result?.hmm?.viterbiSamples ?? 0,
+          },
+        } as any;
+
+        setPrediction(normalized);
       };
       w.addEventListener("message", handler);
       return () => {

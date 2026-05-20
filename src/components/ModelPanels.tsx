@@ -14,22 +14,56 @@ interface Props {
 }
 
 export function ModelPanels({ result, regimeHistory }: Props) {
-  const {
-    arima,
-    garch,
-    hmm,
-    entropy,
-    hurst,
-    hamiltonian,
-    ssl,
-    kalman,
-    jump,
-    hawkes,
-    wavelet,
-    transferEntropy: te,
-    multifractal,
-    fokkerPlanck,
-  } = result;
+  const arima = result.arima ?? {
+    c: 0,
+    phi: 0,
+    phi2: 0,
+    theta: 0,
+    residualStd: 0,
+    driftPerStep: 0,
+  };
+  const garch = result.garch ?? { omega: 0, alpha: 0, beta: 0, sigma: 0, sigmaReturn: 0 };
+  const hmm = result.hmm ?? {
+    dominantState: 1,
+    stateProbs: [0.33, 0.34, 0.33],
+    transitionMatrix: [
+      [0.7, 0.2, 0.1],
+      [0.2, 0.6, 0.2],
+      [0.1, 0.2, 0.7],
+    ],
+    emIterations: 0,
+    logLik: 0,
+    viterbiSamples: 0,
+  };
+  const entropy = result.entropy ?? { H: 0, edge: 0, upRatio: 0 };
+  const hurst = result.hurst ?? { H: 0.5, regime: "random" };
+  const hamiltonian = result.hamiltonian ?? { H: 0, KE: 0, PE: 0, velocity: 0 };
+  const ssl = result.ssl ?? { upper: 0, lower: 0, reachableRange: 0, dTV: 0, meanSpeed: 0, tightness: 0 };
+  const kalman = result.kalman ?? { snr: 0, velocity: 0 };
+  const jump = result.jump ?? { lambda: 0, jumpFraction: 0, pUp: 0, recentJump: null };
+  const hawkes = result.hawkes ?? {
+    branching: 0,
+    currentIntensity: 0,
+    cascadeProbability: 0,
+    isClusterRegime: false,
+  };
+  const wavelet = result.wavelet ?? { dominantScale: 0, trendSlope: 0 };
+  const te = result.transferEntropy ?? { selfTE: 0, crossTE: null };
+  const multifractal = result.multifractal ?? { width: 0, regimeShiftRisk: "low" };
+  const fokkerPlanck = result.fokkerPlanck ?? { mean: 0, bands: [{ lower: 0, upper: 0 }, { lower: 0, upper: 0 }, { lower: 0, upper: 0 }] };
+
+  const garchOmega = Number(garch.omega ?? 0);
+  const garchAlpha = Number(garch.alpha ?? 0);
+  const garchBeta = Number(garch.beta ?? 0);
+  const garchSigma = Number(garch.sigma ?? 0);
+  const fpBand = fokkerPlanck.bands?.[2] ?? { lower: 0, upper: 0 };
+  const fpLower = Number(fpBand.lower ?? 0);
+  const fpUpper = Number(fpBand.upper ?? 0);
+
+  const hamiltonianH = Number(hamiltonian.H ?? 0);
+  const hamiltonianKE = Number(hamiltonian.KE ?? 0);
+  const hamiltonianPE = Number(hamiltonian.PE ?? 0);
+  const hamiltonianVelocity = Number(hamiltonian.velocity ?? 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -98,15 +132,15 @@ export function ModelPanels({ result, regimeHistory }: Props) {
       </Panel>
 
       <Panel title="GARCH(1,1)" accent="var(--garch)" subtitle="σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁">
-        <Row label="ω (baseline)" value={garch.omega.toExponential(2)} />
-        <Row label="α (shock reactivity)" value={garch.alpha.toFixed(3)} />
-        <Row label="β (volatility memory)" value={garch.beta.toFixed(3)} />
-        <Row label="α + β (persistence)" value={(garch.alpha + garch.beta).toFixed(3)} />
-        <Row label="1σ band" value={`±${formatPrice(garch.sigma)}`} />
+        <Row label="ω (baseline)" value={garchOmega.toExponential(2)} />
+        <Row label="α (shock reactivity)" value={garchAlpha.toFixed(3)} />
+        <Row label="β (volatility memory)" value={garchBeta.toFixed(3)} />
+        <Row label="α + β (persistence)" value={(garchAlpha + garchBeta).toFixed(3)} />
+        <Row label="1σ band" value={`±${formatPrice(garchSigma)}`} />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          {garch.alpha + garch.beta > 0.95
+          {garchAlpha + garchBeta > 0.95
             ? "Persistent — once volatility spikes it lingers."
-            : garch.alpha > garch.beta
+            : garchAlpha > garchBeta
               ? "Spiky — reacts fast to shocks then calms."
               : "Sluggish — slow to react but trends long."}
         </p>
@@ -224,15 +258,15 @@ export function ModelPanels({ result, regimeHistory }: Props) {
       </Panel>
 
       <Panel title="Hamiltonian Energy" accent="var(--garch)" subtitle="H = ½v² + ½(ΔP/P)²">
-        <Row label="Total energy H" value={hamiltonian.H.toExponential(2)} />
-        <Row label="Kinetic (velocity²)" value={hamiltonian.KE.toExponential(2)} />
-        <Row label="Potential (Δ from MA)" value={hamiltonian.PE.toExponential(2)} />
+        <Row label="Total energy H" value={hamiltonianH.toExponential(2)} />
+        <Row label="Kinetic (velocity²)" value={hamiltonianKE.toExponential(2)} />
+        <Row label="Potential (Δ from MA)" value={hamiltonianPE.toExponential(2)} />
         <Row
           label="Velocity (log-ret/step)"
-          value={`${hamiltonian.velocity >= 0 ? "+" : ""}${(hamiltonian.velocity * 100).toFixed(3)}%`}
+          value={`${hamiltonianVelocity >= 0 ? "+" : ""}${(hamiltonianVelocity * 100).toFixed(3)}%`}
         />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-          {hamiltonian.KE > hamiltonian.PE
+          {hamiltonianKE > hamiltonianPE
             ? "High kinetic — strong momentum, room to run."
             : "High potential — stretched from mean, reversion risk."}
         </p>
@@ -241,12 +275,12 @@ export function ModelPanels({ result, regimeHistory }: Props) {
       {/* Quantum Speed Limit panel removed per request. */}
 
       <Panel title="Stochastic Speed Limit" accent="var(--ssl)" subtitle="Master-equation bound">
-        <Row label="Upper bound" value={formatPrice(ssl.upper)} />
-        <Row label="Lower bound" value={formatPrice(ssl.lower)} />
-        <Row label="Reachable range" value={`±${formatPrice(ssl.reachableRange / 2)}`} />
-        <Row label="D_TV (prob. distance)" value={ssl.dTV.toFixed(3)} />
-        <Row label="⟨v⟩ (mean speed)" value={ssl.meanSpeed.toFixed(4)} />
-        <Row label="Tightness Q" value={ssl.tightness.toFixed(2)} />
+        <Row label="Upper bound" value={formatPrice(Number(ssl.upper ?? 0))} />
+        <Row label="Lower bound" value={formatPrice(Number(ssl.lower ?? 0))} />
+        <Row label="Reachable range" value={`±${formatPrice(Number(ssl.reachableRange ?? 0) / 2)}`} />
+        <Row label="D_TV (prob. distance)" value={Number(ssl.dTV ?? 0).toFixed(3)} />
+        <Row label="⟨v⟩ (mean speed)" value={Number(ssl.meanSpeed ?? 0).toFixed(4)} />
+        <Row label="Tightness Q" value={Number(ssl.tightness ?? 0).toFixed(2)} />
         <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
           τ ≥ D_TV / ⟨v⟩ (Master Equation, regime probabilities). Q→1 means the system is following
           a near-optimal geodesic in probability space; Q≪1 means the bound has slack.

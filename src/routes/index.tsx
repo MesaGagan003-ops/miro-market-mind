@@ -313,7 +313,7 @@ function PredictionEngine() {
         const titles = (news.items ?? [])
           .slice(0, 8)
           .map((item: { title?: string }) => item.title)
-          .filter(Boolean);
+          .filter((title): title is string => Boolean(title));
         const llm = await getDecayedLlmSignal({
           market: coin.market,
           symbol: coin.id,
@@ -359,10 +359,6 @@ function PredictionEngine() {
     return set.size;
   }, [ticks]);
 
-  const latestModelPrice = modelSeries[modelSeries.length - 1] ?? 0;
-  const latestModelDelta =
-    modelSeries.length >= 2 ? latestModelPrice - modelSeries[modelSeries.length - 2] : 0;
-
   const prediction = useMemo(() => {
     if (modelSeries.length < 12) return null;
     const steps = Math.min(timeframe.minutes, 200);
@@ -386,8 +382,6 @@ function PredictionEngine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     minuteBuckets,
-    latestModelPrice,
-    latestModelDelta,
     timeframe.id,
     adaptive,
     dataQualityMemo.score,

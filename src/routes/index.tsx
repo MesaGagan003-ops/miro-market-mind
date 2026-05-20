@@ -359,10 +359,53 @@ function PredictionEngine() {
     return set.size;
   }, [ticks]);
 
-  const prediction = useMemo(() => {
-    if (modelSeries.length < 12) return null;
+  const [prediction, setPrediction] = useState<any | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const lastReqRef = useRef<string | null>(null);
+
+  // Create worker on mount
+  useEffect(() => {
+    try {
+      // Relative path from this module to the worker file
+      // @ts-ignore
+      const w = new Worker(new URL("../../lib/physics/hybrid.worker.ts", import.meta.url), {
+        type: "module",
+      });
+      workerRef.current = w;
+      const handler = (ev: MessageEvent) => {
+        const { id, result, error } = ev.data as any;
+        if (!id || id !== lastReqRef.current) return;
+        if (error) {
+          console.error("hybrid worker error:", error);
+          return;
+        }
+        setPrediction(result);
+      };
+      w.addEventListener("message", handler);
+      return () => {
+        w.removeEventListener("message", handler);
+        w.terminate();
+        workerRef.current = null;
+      };
+    } catch (e) {
+      // Worker creation failed (older browsers or dev environment) — fall back
+      workerRef.current = null;
+    }
+  }, []);
+
+  // Compute prediction asynchronously via worker (or fallback to sync)
+  useEffect(() => {
+    let cancelled = false;
+    if (modelSeries.length < 12) {
+      setPrediction(null);
+      return;
+    }
     const steps = Math.min(timeframe.minutes, 200);
-    const pred = hybridPredict(modelSeries, steps, {
+
+    const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    lastReqRef.current = reqId;
+
+    const options = {
       adaptiveWeights: adaptive
         ? {
             arima: adaptive.arima,
@@ -377,8 +420,40 @@ function PredictionEngine() {
       llmBias: llmSignal.bias,
       llmConfidence: llmSignal.confidence,
       deepDailyPrices: deepHistory,
-    });
-    return pred;
+    };
+
+    const w = workerRef.current;
+    if (w) {
+      try {
+        w.postMessage({ id: reqId, prices: modelSeries, steps, options });
+      } catch (e) {
+        // If worker posting fails, fallback to sync compute
+        try {
+          const res = hybridPredict(modelSeries, steps, options as any);
+          if (!cancelled) setPrediction(res);
+        } catch (err) {
+          console.error("hybridPredict fallback error", err);
+        }
+      }
+    } else {
+      // No worker available: compute synchronously but schedule briefly to keep UI responsive
+      const t = setTimeout(() => {
+        try {
+          const res = hybridPredict(modelSeries, steps, options as any);
+          if (!cancelled) setPrediction(res);
+        } catch (err) {
+          console.error("hybridPredict error", err);
+        }
+      }, 50);
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     minuteBuckets,
@@ -389,6 +464,7 @@ function PredictionEngine() {
     llmSignal.bias,
     llmSignal.confidence,
     deepHistory.length,
+    modelSeries,
   ]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR

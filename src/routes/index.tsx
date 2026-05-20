@@ -368,7 +368,7 @@ function PredictionEngine() {
     try {
       // Relative path from this module to the worker file
       // @ts-ignore
-      const w = new Worker(new URL("../../lib/physics/hybrid.worker.ts", import.meta.url), {
+      const w = new Worker(new URL("../lib/physics/hybrid.worker.ts", import.meta.url), {
         type: "module",
       });
       workerRef.current = w;

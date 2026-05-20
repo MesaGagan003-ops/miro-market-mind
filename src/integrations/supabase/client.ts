@@ -19,18 +19,32 @@ function createSupabaseClient() {
     auth: {
       storage: typeof window !== "undefined" ? localStorage : undefined,
       persistSession: true,
-      autoRefreshToken: true,
+      // Disable auto token refresh during development to avoid gotrue lock churn
+      // (React Strict Mode + HMR can trigger rapid mount/unmount cycles).
+      autoRefreshToken: !(import.meta.env && import.meta.env.DEV),
     },
   });
 }
 
-let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
+declare global {
+  // preserve the client across HMR in dev to avoid multiple instances
+  // eslint-disable-next-line no-var
+  var __supabase_client__: ReturnType<typeof createSupabaseClient> | undefined;
+}
+
+let _supabase: ReturnType<typeof createSupabaseClient> | undefined =
+  typeof globalThis !== "undefined" && (globalThis as any).__supabase_client__
+    ? (globalThis as any).__supabase_client__
+    : undefined;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
   get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
+    if (!_supabase) {
+      _supabase = createSupabaseClient();
+      if (typeof globalThis !== "undefined") (globalThis as any).__supabase_client__ = _supabase;
+    }
     return Reflect.get(_supabase, prop, receiver);
   },
 });

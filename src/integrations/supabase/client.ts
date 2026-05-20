@@ -15,13 +15,14 @@ function createSupabaseClient() {
     );
   }
 
+  const isDev = Boolean(import.meta.env && import.meta.env.DEV);
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== "undefined" ? localStorage : undefined,
-      persistSession: true,
-      // Disable auto token refresh during development to avoid gotrue lock churn
-      // (React Strict Mode + HMR can trigger rapid mount/unmount cycles).
-      autoRefreshToken: !(import.meta.env && import.meta.env.DEV),
+      // In dev, avoid using localStorage to prevent gotrue lock churn from
+      // Strict Mode and HMR. Use storage only in production.
+      storage: isDev ? undefined : typeof window !== "undefined" ? localStorage : undefined,
+      persistSession: !isDev,
+      autoRefreshToken: !isDev,
     },
   });
 }

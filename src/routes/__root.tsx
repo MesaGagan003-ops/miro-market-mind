@@ -1,4 +1,19 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+// Eagerly initialize the Supabase client to ensure a single instance
+// and reduce gotrue lock churn during hot reloads / Strict Mode.
+import { supabase } from "@/integrations/supabase/client";
+// touch the client so the lazy proxy creates the instance immediately
+void (supabase as any);
+
+// Dev-only: filter noisy gotrue lock warnings from the console
+if (import.meta.env && import.meta.env.DEV) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    import("@/lib/dev/consoleFilter");
+  } catch (e) {
+    // ignore
+  }
+}
 
 import appCss from "../styles.css?url";
 

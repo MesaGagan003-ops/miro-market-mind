@@ -336,11 +336,16 @@ function SentimentChart({
             borderRadius: 8,
             fontSize: 12,
           }}
-          labelFormatter={(v: number) => new Date(v).toLocaleString()}
-          formatter={(value: number | string, name: string) => [
-            typeof value === "number" ? formatPrice(value) : String(value),
-            String(name),
-          ]}
+          labelFormatter={(label) => {
+            const ts = typeof label === "number" ? label : Number(label);
+            return Number.isFinite(ts)
+              ? new Date(ts).toLocaleString("en-US", { timeZone: "UTC" })
+              : String(label ?? "");
+          }}
+          formatter={(value, name) => {
+            const num = typeof value === "number" ? value : Number(value);
+            return [Number.isFinite(num) ? formatPrice(num) : String(value ?? ""), String(name ?? "")];
+          }}
         />
         <ReferenceLine
           x={lastTs}

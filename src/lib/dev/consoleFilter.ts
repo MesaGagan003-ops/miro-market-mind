@@ -14,3 +14,5 @@ if (typeof window !== "undefined") {
     originalWarn(...args);
   };
 }
+
+export {};

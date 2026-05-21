@@ -208,6 +208,18 @@ export interface IndicatorFeatures {
   fibPosition: number; // retracement position in [0, 1]
   fibBias: number; // Fibonacci support/resistance bias
   bias: number; // [-1, 1] consolidated directional bias for hybrid
+  rsi?: number;
+  macd?: number;
+  macdSignal?: number;
+  bbUpper?: number;
+  bbLower?: number;
+  stochasticK?: number;
+  stochasticD?: number;
+  atr?: number;
+  sma50?: number;
+  sma200?: number;
+  adx?: number;
+  cci?: number;
 }
 
 export function extractFeatures(prices: number[]): IndicatorFeatures {

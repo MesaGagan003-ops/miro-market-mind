@@ -32,9 +32,11 @@ export function subscribeBinance(
   symbol: string,
   onTick: TickHandler,
   opts?: StreamOptions,
+  coinGeckoId?: string,
 ): () => void {
   let stopped = false;
   let lastPrice = 0;
+  let lastFallbackPrice = 0;
   const poll = async () => {
     while (!stopped) {
       try {
@@ -47,6 +49,22 @@ export function subscribeBinance(
           onTick(t);
         }
       } catch (e) {
+        if (coinGeckoId) {
+          try {
+            const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
+            if (t.price && t.price !== lastFallbackPrice) {
+              lastFallbackPrice = t.price;
+              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+              onTick(t);
+            } else if (t.price) {
+              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+              onTick(t);
+            }
+            continue;
+          } catch (fallbackError) {
+            console.debug("[subscribeBinance] CoinGecko fallback failed", fallbackError);
+          }
+        }
         // Surface provider status so UI can display the failure
         try {
           opts?.onStatus?.({
@@ -180,7 +198,7 @@ export function subscribeAsset(
 ): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
-    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts);
+    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id);
     return subscribeCoinGecko(asset.id, onTick, opts);
   }
 
@@ -249,7 +267,15 @@ export async function fetchAssetHistory(
       state: "live",
       detail: "history",
     });
-    if (asset.binanceSymbol) return fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
+    if (asset.binanceSymbol) {
+      const rows = await fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
+      if (rows.length > 0) return rows;
+      const fallback = await fetchCoinGeckoHistory(asset.id, 1);
+      if (fallback.length > 0) {
+        opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: "history" });
+      }
+      return fallback;
+    }
     return fetchCoinGeckoHistory(asset.id, 1);
   }
 

@@ -12,6 +12,15 @@ const coinGeckoPriceCache: Map<string, { ts: number; price: number }> = new Map(
 const coinGeckoMarketChartCache: Map<string, { ts: number; data: Array<{ ts: number; price: number }> }> = new Map();
 const binancePriceCache: Map<string, { ts: number; price: number }> = new Map();
 
+function normalizeCoinGeckoId(symbolOrId: string) {
+  const value = symbolOrId.replace(/USDT$/i, "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+  if (value === "btc") return "bitcoin";
+  if (value === "eth") return "ethereum";
+  if (value === "usdc") return "usd-coin";
+  if (value === "usdt") return "tether";
+  return value;
+}
+
 function getCachedCoinGeckoPrice(id: string, maxAgeMs = 10 * 60_000) {
   const cached = coinGeckoPriceCache.get(id);
   if (!cached) return null;
@@ -33,12 +42,9 @@ function setCachedCoinGeckoHistory(id: string, data: Array<{ ts: number; price: 
 }
 
 async function findCoinGeckoId(symbol: string): Promise<string | null> {
-  const s = symbol.replace(/USDT$/i, "").toLowerCase();
+  const s = normalizeCoinGeckoId(symbol);
   // Fast-path: common tokens map directly by id
-  if (s === "btc") return "bitcoin";
-  if (s === "eth") return "ethereum";
-  if (s === "usdc") return "usd-coin";
-  if (s === "usdt") return "tether";
+  if (s === "bitcoin" || s === "ethereum" || s === "usd-coin" || s === "tether") return s;
 
   // If we have a recent cache (10m), use it
   const now = Date.now();
@@ -82,11 +88,11 @@ export const fetchBinanceKlines = createServerFn({ method: "GET" })
     const url = `https://api.binance.com/api/v3/klines?symbol=${data.symbol}&interval=${data.interval}&limit=${data.limit}`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
 
-    // If Binance geo-blocks (451) try a CoinGecko market_chart fallback.
+    // If Binance geo-blocks (451) or throttles (429), try a CoinGecko market_chart fallback.
     if (!res.ok) {
-      if (res.status === 451) {
+      if (res.status === 451 || res.status === 429) {
         try {
-          const cgId = (await findCoinGeckoId(data.symbol)) ?? data.symbol.replace(/USDT$/i, "").toLowerCase();
+          const cgId = (await findCoinGeckoId(data.symbol)) ?? normalizeCoinGeckoId(data.symbol);
           // days estimate: cover at least `limit` minutes -> days = ceil(limit / 1440)
           const days = Math.max(1, Math.ceil(data.limit / 1440));
           const cgUrl = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(cgId)}/market_chart?vs_currency=usd&days=${days}`;
@@ -120,34 +126,42 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     const url = `https://api.binance.com/api/v3/ticker/price?symbol=${data.symbol}`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
 
-    // Binance may geo-block (HTTP 451) for some cloud/CDN IP ranges. In that
-    // case, try a lightweight CoinGecko fallback so the UI can still show a
-    // live-ish price instead of failing outright.
-    if (!res.ok) {
-      if (res.status === 451) {
-        try {
-          const base = data.symbol.replace(/USDT$/i, "").toLowerCase();
-          const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
-            base,
-          )}&vs_currencies=usd`;
-          const cgRes = await fetch(cgUrl, { headers: { "User-Agent": "QuantumEdge/1.0" } });
-          if (cgRes.ok) {
-            const cj = await cgRes.json();
-            const price = cj?.[base]?.usd;
-            if (typeof price === "number") {
-              binancePriceCache.set(data.symbol, { ts: Date.now(), price });
-              return { price, ts: Date.now() };
-            }
-          }
+    const base = normalizeCoinGeckoId(data.symbol);
 
-          const marketChartFallback = await fetchCoinGeckoMarketChart({ data: { id: base, days: 1 } });
-          const last = marketChartFallback[marketChartFallback.length - 1];
-          if (last?.price) {
-            binancePriceCache.set(data.symbol, { ts: Date.now(), price: last.price });
-            return { price: last.price, ts: last.ts };
-          }
-        } catch (err) {
-          if (cached?.price) return { price: cached.price, ts: cached.ts };
+    async function fallbackFromCoinGecko() {
+      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
+        base,
+      )}&vs_currencies=usd`;
+      const cgRes = await fetch(cgUrl, { headers: { "User-Agent": "QuantumEdge/1.0" } });
+      if (cgRes.ok) {
+        const cj = await cgRes.json();
+        const price = cj?.[base]?.usd;
+        if (typeof price === "number") {
+          binancePriceCache.set(data.symbol, { ts: Date.now(), price });
+          return { price, ts: Date.now() };
+        }
+      }
+
+      const marketChartFallback = (await fetchCoinGeckoMarketChart({ data: { id: base, days: 1 } })) as Array<{
+        ts: number;
+        price: number;
+      }>;
+      const last = marketChartFallback[marketChartFallback.length - 1];
+      if (last?.price) {
+        binancePriceCache.set(data.symbol, { ts: Date.now(), price: last.price });
+        return { price: last.price, ts: last.ts };
+      }
+
+      return null;
+    }
+
+    if (!res.ok) {
+      if (res.status === 451 || res.status === 429) {
+        try {
+          const fallback = await fallbackFromCoinGecko();
+          if (fallback) return fallback;
+        } catch {
+          // fall through to cached/original error below
         }
       }
 
@@ -160,8 +174,13 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     const price = parseFloat(j.price);
     if (Number.isFinite(price) && price > 0) {
       binancePriceCache.set(data.symbol, { ts: Date.now(), price });
+      return { price, ts: Date.now() };
     }
-    return { price, ts: Date.now() };
+
+    const fallback = await fallbackFromCoinGecko();
+    if (fallback) return fallback;
+    if (cached?.price) return { price: cached.price, ts: cached.ts };
+    throw new Error(`Binance ticker invalid payload for ${data.symbol}`);
   });
 
 export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
@@ -179,12 +198,17 @@ export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
     if (!res.ok) {
       if (res.status === 429 || res.status === 451) {
-        const fallback = await fetchCoinGeckoMarketChart({ data: { id: data.id, days: 1 } });
+        const fallback = (await fetchCoinGeckoMarketChart({ data: { id: data.id, days: 1 } })) as Array<{
+          ts: number;
+          price: number;
+        }>;
         const last = fallback[fallback.length - 1];
         if (last?.price) {
           setCachedCoinGeckoPrice(data.id, last.price);
           return { price: last.price, ts: last.ts };
         }
+        const cachedFallback = getCachedCoinGeckoPrice(data.id);
+        if (cachedFallback) return { price: cachedFallback.price, ts: cachedFallback.ts };
       }
       throw new Error(`CoinGecko simple/price ${res.status}`);
     }

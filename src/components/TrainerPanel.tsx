@@ -183,16 +183,21 @@ export function TrainerPanel({ market, symbol, timeframe }: Props) {
             <XAxis
               dataKey="t"
               tickFormatter={(v) =>
-                new Date(v).toLocaleTimeString([], {
+                new Date(v).toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false,
+                  timeZone: "UTC",
                 })
               }
               tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
             />
             <YAxis tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }} width={36} />
-            <Tooltip labelFormatter={(v) => new Date(Number(v)).toLocaleString()} />
+            <Tooltip
+              labelFormatter={(v) =>
+                new Date(Number(v)).toLocaleString("en-US", { timeZone: "UTC" })
+              }
+            />
             <Line
               type="monotone"
               dataKey="arima"

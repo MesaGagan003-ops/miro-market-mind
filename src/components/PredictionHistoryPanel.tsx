@@ -377,7 +377,9 @@ export function PredictionHistoryPanel() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Start Time:</span>
-                        <div className="font-mono">{new Date(p.startTs).toLocaleString()}</div>
+                        <div className="font-mono">
+                          {new Date(p.startTs).toLocaleString("en-US", { timeZone: "UTC" })}
+                        </div>
                       </div>
                     </div>
                   </>

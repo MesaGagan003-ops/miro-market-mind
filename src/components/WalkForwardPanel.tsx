@@ -187,7 +187,11 @@ export function WalkForwardPanel({ coin }: Props) {
                 <XAxis
                   dataKey="ts"
                   tickFormatter={(v) =>
-                    new Date(v).toLocaleDateString([], { month: "short", day: "numeric" })
+                    new Date(v).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      timeZone: "UTC",
+                    })
                   }
                   tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
                 />
@@ -198,7 +202,9 @@ export function WalkForwardPanel({ coin }: Props) {
                   width={56}
                 />
                 <Tooltip
-                  labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
+                  labelFormatter={(v) =>
+                    new Date(Number(v)).toLocaleString("en-US", { timeZone: "UTC" })
+                  }
                   formatter={(value, name) => {
                     const v = Number(value);
                     return [

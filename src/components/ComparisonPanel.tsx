@@ -287,16 +287,29 @@ export function ComparisonPanel({ coin }: Props) {
                   tickFormatter={(v) => {
                     const d = new Date(v);
                     if (range === "1h")
-                      return d.toLocaleTimeString([], {
+                      return d.toLocaleTimeString("en-US", {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: false,
+                        timeZone: "UTC",
                       });
                     if (range === "1w")
-                      return d.toLocaleDateString([], { month: "short", day: "numeric" });
+                      return d.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        timeZone: "UTC",
+                      });
                     if (range === "1mo")
-                      return d.toLocaleDateString([], { month: "short", day: "numeric" });
-                    return d.toLocaleDateString([], { month: "short", year: "2-digit" });
+                      return d.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        timeZone: "UTC",
+                      });
+                    return d.toLocaleDateString("en-US", {
+                      month: "short",
+                      year: "2-digit",
+                      timeZone: "UTC",
+                    });
                   }}
                   tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
                 />
@@ -307,7 +320,7 @@ export function ComparisonPanel({ coin }: Props) {
                   tickFormatter={(v) => (v < 1 ? Number(v).toExponential(1) : Number(v).toFixed(2))}
                 />
                 <Tooltip
-                  labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
+                  labelFormatter={(v) => new Date(Number(v)).toLocaleString("en-US", { timeZone: "UTC" })}
                   formatter={(value) => {
                     const n = Number(value);
                     if (!Number.isFinite(n)) return "—";

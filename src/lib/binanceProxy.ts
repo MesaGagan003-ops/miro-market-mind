@@ -10,6 +10,7 @@ import { createServerFn } from "@tanstack/react-start";
 const coinGeckoListCache: { ts: number; data?: Array<{ id: string; symbol: string; name: string }> } = { ts: 0 };
 const coinGeckoPriceCache: Map<string, { ts: number; price: number }> = new Map();
 const coinGeckoMarketChartCache: Map<string, { ts: number; data: Array<{ ts: number; price: number }> }> = new Map();
+const binancePriceCache: Map<string, { ts: number; price: number }> = new Map();
 
 function getCachedCoinGeckoPrice(id: string, maxAgeMs = 10 * 60_000) {
   const cached = coinGeckoPriceCache.get(id);
@@ -115,6 +116,7 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     return { symbol: String(i.symbol ?? "BTCUSDT").toUpperCase() };
   })
   .handler(async ({ data }) => {
+    const cached = binancePriceCache.get(data.symbol);
     const url = `https://api.binance.com/api/v3/ticker/price?symbol=${data.symbol}`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
 
@@ -132,18 +134,34 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
           if (cgRes.ok) {
             const cj = await cgRes.json();
             const price = cj?.[base]?.usd;
-            if (typeof price === "number") return { price, ts: Date.now() };
+            if (typeof price === "number") {
+              binancePriceCache.set(data.symbol, { ts: Date.now(), price });
+              return { price, ts: Date.now() };
+            }
+          }
+
+          const marketChartFallback = await fetchCoinGeckoMarketChart({ data: { id: base, days: 1 } });
+          const last = marketChartFallback[marketChartFallback.length - 1];
+          if (last?.price) {
+            binancePriceCache.set(data.symbol, { ts: Date.now(), price: last.price });
+            return { price: last.price, ts: last.ts };
           }
         } catch (err) {
-          // fall through to throw the original Binance error below
+          if (cached?.price) return { price: cached.price, ts: cached.ts };
         }
       }
+
+      if (cached?.price) return { price: cached.price, ts: cached.ts };
 
       throw new Error(`Binance ticker ${res.status}`);
     }
 
     const j = (await res.json()) as { price: string };
-    return { price: parseFloat(j.price), ts: Date.now() };
+    const price = parseFloat(j.price);
+    if (Number.isFinite(price) && price > 0) {
+      binancePriceCache.set(data.symbol, { ts: Date.now(), price });
+    }
+    return { price, ts: Date.now() };
   });
 
 export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })

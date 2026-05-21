@@ -154,7 +154,11 @@ export function DeepHistoryBacktestPanel({ coin }: Props) {
                 <XAxis
                   dataKey="ts"
                   tickFormatter={(v) =>
-                    new Date(v).toLocaleDateString([], { year: "2-digit", month: "short" })
+                    new Date(v).toLocaleDateString("en-US", {
+                      year: "2-digit",
+                      month: "short",
+                      timeZone: "UTC",
+                    })
                   }
                   tick={{ fill: "oklch(0.65 0.03 255)", fontSize: 10 }}
                 />
@@ -165,7 +169,9 @@ export function DeepHistoryBacktestPanel({ coin }: Props) {
                   width={56}
                 />
                 <Tooltip
-                  labelFormatter={(v) => new Date(Number(v)).toLocaleDateString()}
+                  labelFormatter={(v) =>
+                    new Date(Number(v)).toLocaleDateString("en-US", { timeZone: "UTC" })
+                  }
                   formatter={(value, name) => {
                     const v = Number(value);
                     return [

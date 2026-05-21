@@ -8,6 +8,28 @@ import { createServerFn } from "@tanstack/react-start";
 
 // Cache for CoinGecko `/coins/list` to avoid repeated lookups on the edge.
 const coinGeckoListCache: { ts: number; data?: Array<{ id: string; symbol: string; name: string }> } = { ts: 0 };
+const coinGeckoPriceCache: Map<string, { ts: number; price: number }> = new Map();
+const coinGeckoMarketChartCache: Map<string, { ts: number; data: Array<{ ts: number; price: number }> }> = new Map();
+
+function getCachedCoinGeckoPrice(id: string, maxAgeMs = 10 * 60_000) {
+  const cached = coinGeckoPriceCache.get(id);
+  if (!cached) return null;
+  return Date.now() - cached.ts <= maxAgeMs ? cached : null;
+}
+
+function setCachedCoinGeckoPrice(id: string, price: number) {
+  coinGeckoPriceCache.set(id, { ts: Date.now(), price });
+}
+
+function getCachedCoinGeckoHistory(id: string, maxAgeMs = 60 * 60_000) {
+  const cached = coinGeckoMarketChartCache.get(id);
+  if (!cached) return null;
+  return Date.now() - cached.ts <= maxAgeMs ? cached : null;
+}
+
+function setCachedCoinGeckoHistory(id: string, data: Array<{ ts: number; price: number }>) {
+  coinGeckoMarketChartCache.set(id, { ts: Date.now(), data });
+}
 
 async function findCoinGeckoId(symbol: string): Promise<string | null> {
   const s = symbol.replace(/USDT$/i, "").toLowerCase();
@@ -130,11 +152,22 @@ export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
     return { id: String(i.id ?? "bitcoin").trim().toLowerCase() };
   })
   .handler(async ({ data }) => {
+    const cached = getCachedCoinGeckoPrice(data.id);
+    if (cached) return { price: cached.price, ts: cached.ts };
+
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
       data.id,
     )}&vs_currencies=usd&include_last_updated_at=true`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
     if (!res.ok) {
+      if (res.status === 429 || res.status === 451) {
+        const fallback = await fetchCoinGeckoMarketChart({ data: { id: data.id, days: 1 } });
+        const last = fallback[fallback.length - 1];
+        if (last?.price) {
+          setCachedCoinGeckoPrice(data.id, last.price);
+          return { price: last.price, ts: last.ts };
+        }
+      }
       throw new Error(`CoinGecko simple/price ${res.status}`);
     }
     const j = (await res.json()) as Record<string, { usd?: number; last_updated_at?: number }>;
@@ -143,6 +176,7 @@ export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
       throw new Error(`CoinGecko simple/price invalid payload for ${data.id}`);
     }
     const updatedSec = j?.[data.id]?.last_updated_at;
+    setCachedCoinGeckoPrice(data.id, price);
     return { price, ts: (updatedSec ? updatedSec * 1000 : Date.now()) as number };
   });
 
@@ -155,6 +189,9 @@ export const fetchCoinGeckoMarketChart = createServerFn({ method: "GET" })
     };
   })
   .handler(async ({ data }) => {
+    const cached = getCachedCoinGeckoHistory(data.id);
+    if (cached) return cached.data;
+
     const url = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(
       data.id,
     )}/market_chart?vs_currency=usd&days=${data.days}`;
@@ -164,7 +201,9 @@ export const fetchCoinGeckoMarketChart = createServerFn({ method: "GET" })
     }
     const j = (await res.json()) as { prices?: Array<[number, number]> };
     const prices = Array.isArray(j.prices) ? j.prices : [];
-    return prices
+    const mapped = prices
       .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
       .map(([ts, price]) => ({ ts: Math.floor(ts), price }));
+    setCachedCoinGeckoHistory(data.id, mapped);
+    return mapped;
   });

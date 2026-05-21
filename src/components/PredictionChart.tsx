@@ -137,7 +137,9 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
             }}
             labelFormatter={(label) => {
               const ts = typeof label === "number" ? label : Number(label);
-              return Number.isFinite(ts) ? new Date(ts).toLocaleString() : String(label ?? "");
+              return Number.isFinite(ts)
+                ? new Date(ts).toLocaleString("en-US", { timeZone: "UTC" })
+                : String(label ?? "");
             }}
             formatter={(value, name, item) => {
               const step = (item as { payload?: { step?: number } } | undefined)?.payload?.step;
@@ -298,16 +300,22 @@ function formatPrice(v: number): string {
 function formatTime(ts: number, spanMs: number): string {
   const d = new Date(ts);
   const spanH = spanMs / 3_600_000;
+  const timeFormat: Intl.DateTimeFormatOptions = {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  };
   if (spanH < 6) {
     // intraday: HH:MM
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    return d.toLocaleTimeString("en-US", timeFormat);
   }
   if (spanH < 48) {
     // ~1-2 days: "DD HH:MM"
-    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+    return `${d.getUTCDate().toString().padStart(2, "0")} ${d.toLocaleTimeString("en-US", timeFormat)}`;
   }
   if (spanH < 24 * 14) {
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   }
-  return d.toLocaleDateString([], { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
 }

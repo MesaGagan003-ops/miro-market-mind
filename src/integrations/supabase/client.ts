@@ -15,14 +15,13 @@ function createSupabaseClient() {
     );
   }
 
-  const isDev = Boolean(import.meta.env && import.meta.env.DEV);
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      // In dev, avoid using localStorage to prevent gotrue lock churn from
-      // Strict Mode and HMR. Use storage only in production.
-      storage: isDev ? undefined : typeof window !== "undefined" ? localStorage : undefined,
-      persistSession: !isDev,
-      autoRefreshToken: !isDev,
+      // This app uses anonymous/public data access only. Avoid auth-session
+      // persistence/refresh to prevent gotrue lock contention in long sessions.
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
     },
   });
 }

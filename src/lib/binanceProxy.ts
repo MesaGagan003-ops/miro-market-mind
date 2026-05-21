@@ -123,3 +123,48 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     const j = (await res.json()) as { price: string };
     return { price: parseFloat(j.price), ts: Date.now() };
   });
+
+export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => {
+    const i = (input ?? {}) as { id?: string };
+    return { id: String(i.id ?? "bitcoin").trim().toLowerCase() };
+  })
+  .handler(async ({ data }) => {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
+      data.id,
+    )}&vs_currencies=usd&include_last_updated_at=true`;
+    const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
+    if (!res.ok) {
+      throw new Error(`CoinGecko simple/price ${res.status}`);
+    }
+    const j = (await res.json()) as Record<string, { usd?: number; last_updated_at?: number }>;
+    const price = j?.[data.id]?.usd;
+    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
+      throw new Error(`CoinGecko simple/price invalid payload for ${data.id}`);
+    }
+    const updatedSec = j?.[data.id]?.last_updated_at;
+    return { price, ts: (updatedSec ? updatedSec * 1000 : Date.now()) as number };
+  });
+
+export const fetchCoinGeckoMarketChart = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => {
+    const i = (input ?? {}) as { id?: string; days?: number };
+    return {
+      id: String(i.id ?? "bitcoin").trim().toLowerCase(),
+      days: Math.max(1, Math.min(365, Number(i.days ?? 1))),
+    };
+  })
+  .handler(async ({ data }) => {
+    const url = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(
+      data.id,
+    )}/market_chart?vs_currency=usd&days=${data.days}`;
+    const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
+    if (!res.ok) {
+      throw new Error(`CoinGecko market_chart ${res.status}`);
+    }
+    const j = (await res.json()) as { prices?: Array<[number, number]> };
+    const prices = Array.isArray(j.prices) ? j.prices : [];
+    return prices
+      .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+      .map(([ts, price]) => ({ ts: Math.floor(ts), price }));
+  });

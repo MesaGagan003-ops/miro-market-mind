@@ -7,6 +7,7 @@ import {
   ReferenceLine,
   Tooltip,
   CartesianGrid,
+  ResponsiveContainer,
 } from "recharts";
 import type { HybridResult } from "@/lib/physics/hybrid";
 
@@ -100,12 +101,8 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
         <span className="text-muted-foreground">Each dot = 1-minute prediction</span>
       </div>
       <div style={{ width: "100%", height: 420, display: "flex", justifyContent: "center" }}>
-        <ComposedChart
-          data={data}
-          width={Math.max(600, window.innerWidth - 120)}
-          height={420}
-          margin={{ top: 12, right: 16, bottom: 8, left: 8 }}
-        >
+        <ResponsiveContainer width="100%" height={420}>
+          <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
           <defs>
             <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="oklch(0.72 0.18 230)" stopOpacity={0.25} />
@@ -222,7 +219,8 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
             connectNulls
             isAnimationActive={false}
           />
-        </ComposedChart>
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
       <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground px-2 border-t border-border/40 pt-2">
         <div className="flex items-center gap-1.5">

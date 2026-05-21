@@ -3,6 +3,7 @@
 // a TanStack Start server function and poll at ~1s for near-tick cadence.
 
 import { fetchBinancePrice, fetchBinanceKlines } from "./binanceProxy";
+import { fetchCoinGeckoMarketChart, fetchCoinGeckoPrice } from "./binanceProxy";
 import { fetchForexHistory, fetchForexPrice } from "./forexProxy";
 import { fetchYahooHistory } from "./yahooProxy";
 import type { MarketAsset } from "./markets";
@@ -75,26 +76,18 @@ export function subscribeCoinGecko(
   opts?: StreamOptions,
 ): () => void {
   let stopped = false;
+  let failStreak = 0;
   const poll = async () => {
     while (!stopped) {
       try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_last_updated_at=true`,
-        );
-        if (!res.ok) {
-          opts?.onStatus?.({
-            provider: "coingecko",
-            state: "failing",
-            detail: `status ${res.status}`,
-          });
-        }
-        const data = await res.json();
-        const entry = data[coinId];
-        if (entry?.usd) {
+        const t = await fetchCoinGeckoPrice({ data: { id: coinId } });
+        if (t.price) {
+          failStreak = 0;
           opts?.onStatus?.({ provider: "coingecko", state: "live" });
-          onTick({ price: entry.usd, ts: (entry.last_updated_at ?? Date.now() / 1000) * 1000 });
+          onTick(t);
         }
       } catch (e) {
+        failStreak += 1;
         try {
           opts?.onStatus?.({
             provider: "coingecko",
@@ -104,9 +97,13 @@ export function subscribeCoinGecko(
         } catch (err) {
           console.debug("[subscribeCoinGecko] onStatus handler failed", err);
         }
-        console.error("[subscribeCoinGecko] error", e);
+        // Avoid log storms in long-running sessions.
+        if (failStreak <= 2 || failStreak % 10 === 0) {
+          console.error("[subscribeCoinGecko] error", e);
+        }
       }
-      await new Promise((r) => setTimeout(r, 5000));
+      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 5_000;
+      await new Promise((r) => setTimeout(r, waitMs));
     }
   };
   poll();
@@ -130,12 +127,7 @@ export async function fetchBinanceHistory(
 
 export async function fetchCoinGeckoHistory(coinId: string, days = 1): Promise<Tick[]> {
   try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`,
-    );
-    const data = await res.json();
-    const prices = (data.prices ?? []) as Array<[number, number]>;
-    return prices.map(([ts, price]) => ({ ts, price }));
+    return await fetchCoinGeckoMarketChart({ data: { id: coinId, days } });
   } catch {
     return [];
   }

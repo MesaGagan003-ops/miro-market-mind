@@ -1,0 +1,47 @@
+src/components/IndicatorOverlayPanel.tsx(263,13): error TS2322: Type '(v: number) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: any, payload: TooltipPayload) => ReactNode)'.
+  Type '(v: number) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'v' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/IndicatorOverlayPanel.tsx(264,13): error TS2322: Type '(value: number | string, name: string) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(value: number | string, name: string) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'string | number'.
+        Type 'undefined' is not assignable to type 'string | number'.
+src/components/IndicatorOverlayPanel.tsx(368,13): error TS2322: Type '(v: number) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: any, payload: TooltipPayload) => ReactNode)'.
+  Type '(v: number) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'v' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/NewsPanel.tsx(339,11): error TS2322: Type '(v: number) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: any, payload: TooltipPayload) => ReactNode)'.
+  Type '(v: number) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'v' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/NewsPanel.tsx(340,11): error TS2322: Type '(value: number | string, name: string) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(value: number | string, name: string) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'string | number'.
+        Type 'undefined' is not assignable to type 'string | number'.
+src/components/TechnicalIndicatorMetrics.tsx(19,28): error TS2339: Property 'rsi' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(20,29): error TS2339: Property 'macd' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(21,35): error TS2339: Property 'macdSignal' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(22,32): error TS2339: Property 'bbUpper' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(23,32): error TS2339: Property 'bbLower' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(24,36): error TS2339: Property 'stochasticK' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(25,36): error TS2339: Property 'stochasticD' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(26,28): error TS2339: Property 'atr' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(27,30): error TS2339: Property 'sma50' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(28,31): error TS2339: Property 'sma200' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(29,28): error TS2339: Property 'adx' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/TechnicalIndicatorMetrics.tsx(30,28): error TS2339: Property 'cci' does not exist on type 'Partial<IndicatorFeatures>'.
+src/components/ui/alert-dialog.tsx(5,10): error TS2459: Module '"@/components/ui/button"' declares 'buttonVariants' locally, but it is not exported.
+src/components/ui/calendar.tsx(8,18): error TS2459: Module '"@/components/ui/button"' declares 'buttonVariants' locally, but it is not exported.
+src/components/ui/form.tsx(108,80): error TS2552: Cannot find name 'FormField'. Did you mean 'useFormField'?
+src/components/ui/pagination.tsx(5,23): error TS2459: Module '"@/components/ui/button"' declares 'buttonVariants' locally, but it is not exported.
+src/components/ui/toggle-group.tsx(8,10): error TS2459: Module '"@/components/ui/toggle"' declares 'toggleVariants' locally, but it is not exported.
+src/components/ui/toggle-group.tsx(20,4): error TS2322: Type '{ children: Element; ref: ForwardedRef<HTMLDivElement>; className: string; } | { children: Element; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ((ToggleGroupSingleProps | ToggleGroupMultipleProps) & RefAttributes<HTMLDivElement>)'.
+  Type '{ children: Element; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ((ToggleGroupSingleProps | ToggleGroupMultipleProps) & RefAttributes<HTMLDivElement>)'.
+    Property 'type' is missing in type '{ children: Element; ref: ForwardedRef<HTMLDivElement>; className: string; }' but required in type 'ToggleGroupMultipleProps'.
+src/components/ui/toggle-group.tsx(39,6): error TS2741: Property 'value' is missing in type '{ children: any; ref: ForwardedRef<HTMLButtonElement>; className: string; }' but required in type 'Omit<ToggleGroupItemImplProps, "pressed">'.
+src/routes/__root.tsx(12,12): error TS2306: File '/workspaces/astro-market-mind/src/lib/dev/consoleFilter.ts' is not a module.

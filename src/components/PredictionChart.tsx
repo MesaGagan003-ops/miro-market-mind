@@ -135,17 +135,17 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
               borderRadius: 8,
               fontSize: 12,
             }}
-            labelFormatter={(v: number) => new Date(v).toLocaleString()}
-            formatter={(
-              value: number | string,
-              name: string,
-              props?: { payload?: { step?: number } },
-            ) => {
-              const step = props?.payload?.step;
+            labelFormatter={(label) => {
+              const ts = typeof label === "number" ? label : Number(label);
+              return Number.isFinite(ts) ? new Date(ts).toLocaleString() : String(label ?? "");
+            }}
+            formatter={(value, name, item) => {
+              const step = (item as { payload?: { step?: number } } | undefined)?.payload?.step;
               const stepLabel = step ? ` (min ${step})` : "";
+              const num = typeof value === "number" ? value : Number(value);
               return [
-                typeof value === "number" ? formatPrice(value) : String(value),
-                String(name) + stepLabel,
+                Number.isFinite(num) ? formatPrice(num) : String(value ?? ""),
+                String(name ?? "") + stepLabel,
               ];
             }}
           />

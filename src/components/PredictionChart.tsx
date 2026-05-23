@@ -36,7 +36,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
   // wall-clock. This guarantees the predicted line continues seamlessly from
   // where the actual tick data ends — no time gap, no price jump — across
   // crypto, forex, NSE and BSE (whose feeds may lag the wall clock).
-  const lastTs = history.length > 0 ? history[history.length - 1].ts : Date.now();
+  const lastTs = history.length > 0 ? history[history.length - 1].ts : 0;
   const lastActual = history.length > 0 ? history[history.length - 1].price : currentPrice;
   const stepMs = minutesPerStep * 60 * 1000;
   const futurePoints = prediction.forecast.map((f) => ({
@@ -290,7 +290,7 @@ function Legend({ c, l, dash }: { c: string; l: string; dash?: boolean }) {
 }
 
 function formatPrice(v: number): string {
-  if (v >= 1000) return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (v >= 1000) return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   if (v >= 1) return `$${v.toFixed(2)}`;
   if (v >= 0.01) return `$${v.toFixed(4)}`;
   return `$${v.toExponential(2)}`;

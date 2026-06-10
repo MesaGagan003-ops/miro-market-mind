@@ -77,7 +77,9 @@ export function subscribeBinance(
         }
         console.error("[subscribeBinance] error", e);
       }
-      await new Promise((r) => setTimeout(r, 1500));
+      // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
+      // between freshness and edge-function load.
+      await new Promise((r) => setTimeout(r, 800));
     }
   };
   poll();
@@ -86,7 +88,10 @@ export function subscribeBinance(
   };
 }
 
-const YAHOO_POLL_MS = 30_000;
+// Yahoo Finance free intraday data lags ~1 min from market. Polling slower
+// than the data refresh just adds perceived delay — 10s keeps us close to
+// Yahoo's own refresh cadence without spamming.
+const YAHOO_POLL_MS = 10_000;
 
 export function subscribeCoinGecko(
   coinId: string,
@@ -120,7 +125,7 @@ export function subscribeCoinGecko(
           console.error("[subscribeCoinGecko] error", e);
         }
       }
-      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 5_000;
+      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 2_000;
       await new Promise((r) => setTimeout(r, waitMs));
     }
   };

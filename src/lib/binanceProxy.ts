@@ -21,7 +21,10 @@ function normalizeCoinGeckoId(symbolOrId: string) {
   return value;
 }
 
-function getCachedCoinGeckoPrice(id: string, maxAgeMs = 10 * 60_000) {
+// CoinGecko's free tier updates ~every 30-60s. A 10-minute cache was making
+// the UI feel minutes behind real markets. Drop to 8s so polling actually
+// returns fresh prices while still respecting CoinGecko rate limits.
+function getCachedCoinGeckoPrice(id: string, maxAgeMs = 8_000) {
   const cached = coinGeckoPriceCache.get(id);
   if (!cached) return null;
   return Date.now() - cached.ts <= maxAgeMs ? cached : null;

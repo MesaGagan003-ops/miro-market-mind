@@ -86,7 +86,10 @@ export function subscribeBinance(
   };
 }
 
-const YAHOO_POLL_MS = 30_000;
+// Yahoo Finance free intraday data lags ~1 min from market. Polling slower
+// than the data refresh just adds perceived delay — 10s keeps us close to
+// Yahoo's own refresh cadence without spamming.
+const YAHOO_POLL_MS = 10_000;
 
 export function subscribeCoinGecko(
   coinId: string,

@@ -138,7 +138,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
             labelFormatter={(label) => {
               const ts = typeof label === "number" ? label : Number(label);
               return Number.isFinite(ts)
-                ? new Date(ts).toLocaleString("en-US", { timeZone: "UTC" })
+                ? new Date(ts).toLocaleString()
                 : String(label ?? "");
             }}
             formatter={(value, name, item) => {

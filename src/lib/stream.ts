@@ -77,7 +77,9 @@ export function subscribeBinance(
         }
         console.error("[subscribeBinance] error", e);
       }
-      await new Promise((r) => setTimeout(r, 1500));
+      // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
+      // between freshness and edge-function load.
+      await new Promise((r) => setTimeout(r, 800));
     }
   };
   poll();

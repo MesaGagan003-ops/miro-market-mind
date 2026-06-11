@@ -14,5 +14,8 @@ export const TIMEFRAMES: Timeframe[] = [
   { id: "1h", label: "1 hour", minutes: 60 },
   { id: "2h", label: "2 hours", minutes: 120 },
   { id: "4h", label: "4 hours", minutes: 240 },
+  { id: "5h", label: "5 hours", minutes: 300 },
+  { id: "10h", label: "10 hours", minutes: 600 },
+  { id: "1d", label: "1 day", minutes: 1440 },
   { id: "1w", label: "1 week", minutes: 60 * 24 * 7 },
 ];

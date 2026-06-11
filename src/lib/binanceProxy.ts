@@ -5,6 +5,7 @@
 // Running the fetch on the edge worker avoids both issues.
 
 import { createServerFn } from "@tanstack/react-start";
+import { fetchYahooHistory } from "./yahooProxy";
 
 // Cache for CoinGecko `/coins/list` to avoid repeated lookups on the edge.
 const coinGeckoListCache: { ts: number; data?: Array<{ id: string; symbol: string; name: string }> } = { ts: 0 };
@@ -78,6 +79,58 @@ async function findCoinGeckoId(symbol: string): Promise<string | null> {
   return null;
 }
 
+async function fallbackBinanceToCoinGecko(symbol: string, limit?: number) {
+  const cgId = (await findCoinGeckoId(symbol)) ?? normalizeCoinGeckoId(symbol);
+  const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
+    cgId,
+  )}&vs_currencies=usd`;
+  const cgRes = await fetch(cgUrl, { headers: { "User-Agent": "QuantumEdge/1.0" } });
+  if (cgRes.ok) {
+    const cj = await cgRes.json();
+    const price = cj?.[cgId]?.usd;
+    if (typeof price === "number" && Number.isFinite(price) && price > 0) {
+      binancePriceCache.set(symbol, { ts: Date.now(), price });
+      return { price, ts: Date.now() };
+    }
+  }
+
+  const marketChartFallback = (await fetchCoinGeckoMarketChart({ data: { id: cgId, days: 1 } })) as Array<{
+    ts: number;
+    price: number;
+  }>;
+  if (limit && marketChartFallback.length > limit) {
+    return marketChartFallback.slice(-limit);
+  }
+
+  const last = marketChartFallback[marketChartFallback.length - 1];
+  if (last?.price) {
+    binancePriceCache.set(symbol, { ts: Date.now(), price: last.price });
+    return { price: last.price, ts: last.ts };
+  }
+
+  return null;
+}
+
+async function fallbackBinanceToYahoo(symbol: string, limit?: number) {
+  const yahooSymbol = `${symbol.replace(/USDT$/i, "")}-USD`;
+  const rows = await fetchYahooHistory({
+    data: { symbol: yahooSymbol, interval: "1m", range: "1d" },
+  });
+  if (rows.length === 0) return null;
+
+  if (limit && rows.length > limit) {
+    return rows.slice(-limit);
+  }
+
+  const last = rows[rows.length - 1];
+  if (last?.price) {
+    binancePriceCache.set(symbol, { ts: Date.now(), price: last.price });
+    return { price: last.price, ts: last.ts };
+  }
+
+  return null;
+}
+
 export const fetchBinanceKlines = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => {
     const i = (input ?? {}) as { symbol?: string; interval?: string; limit?: number };
@@ -91,25 +144,15 @@ export const fetchBinanceKlines = createServerFn({ method: "GET" })
     const url = `https://api.binance.com/api/v3/klines?symbol=${data.symbol}&interval=${data.interval}&limit=${data.limit}`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
 
-    // If Binance geo-blocks (451) or throttles (429), try a CoinGecko market_chart fallback.
+    // If Binance fails for any reason, try Yahoo Finance first and CoinGecko second.
     if (!res.ok) {
-      if (res.status === 451 || res.status === 429) {
-        try {
-          const cgId = (await findCoinGeckoId(data.symbol)) ?? normalizeCoinGeckoId(data.symbol);
-          // days estimate: cover at least `limit` minutes -> days = ceil(limit / 1440)
-          const days = Math.max(1, Math.ceil(data.limit / 1440));
-          const cgUrl = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(cgId)}/market_chart?vs_currency=usd&days=${days}`;
-          const cgRes = await fetch(cgUrl, { headers: { "User-Agent": "QuantumEdge/1.0" } });
-          if (cgRes.ok) {
-            const cj = await cgRes.json();
-            const prices = (cj.prices ?? []) as Array<[number, number]>;
-            // Return up to `limit` most recent points mapped to Tick-like shape.
-            const sliced = prices.slice(-data.limit);
-            return sliced.map(([ts, price]) => ({ ts: Math.floor(ts), price }));
-          }
-        } catch (err) {
-          // fall through to throw original Binance error below
+      try {
+        const fallback = (await fallbackBinanceToYahoo(data.symbol, data.limit)) ?? (await fallbackBinanceToCoinGecko(data.symbol, data.limit));
+        if (fallback && Array.isArray(fallback)) {
+          return fallback;
         }
+      } catch {
+        // fall through to throw original Binance error below
       }
 
       throw new Error(`Binance klines ${res.status}`);
@@ -129,43 +172,12 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     const url = `https://api.binance.com/api/v3/ticker/price?symbol=${data.symbol}`;
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
 
-    const base = normalizeCoinGeckoId(data.symbol);
-
-    async function fallbackFromCoinGecko() {
-      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
-        base,
-      )}&vs_currencies=usd`;
-      const cgRes = await fetch(cgUrl, { headers: { "User-Agent": "QuantumEdge/1.0" } });
-      if (cgRes.ok) {
-        const cj = await cgRes.json();
-        const price = cj?.[base]?.usd;
-        if (typeof price === "number") {
-          binancePriceCache.set(data.symbol, { ts: Date.now(), price });
-          return { price, ts: Date.now() };
-        }
-      }
-
-      const marketChartFallback = (await fetchCoinGeckoMarketChart({ data: { id: base, days: 1 } })) as Array<{
-        ts: number;
-        price: number;
-      }>;
-      const last = marketChartFallback[marketChartFallback.length - 1];
-      if (last?.price) {
-        binancePriceCache.set(data.symbol, { ts: Date.now(), price: last.price });
-        return { price: last.price, ts: last.ts };
-      }
-
-      return null;
-    }
-
     if (!res.ok) {
-      if (res.status === 451 || res.status === 429) {
-        try {
-          const fallback = await fallbackFromCoinGecko();
-          if (fallback) return fallback;
-        } catch {
-          // fall through to cached/original error below
-        }
+      try {
+        const fallback = (await fallbackBinanceToYahoo(data.symbol)) ?? (await fallbackBinanceToCoinGecko(data.symbol));
+        if (fallback && !Array.isArray(fallback)) return fallback;
+      } catch {
+        // fall through to cached/original error below
       }
 
       if (cached?.price) return { price: cached.price, ts: cached.ts };
@@ -180,7 +192,7 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
       return { price, ts: Date.now() };
     }
 
-    const fallback = await fallbackFromCoinGecko();
+    const fallback = (await fallbackBinanceToYahoo(data.symbol)) ?? (await fallbackBinanceToCoinGecko(data.symbol));
     if (fallback) return fallback;
     if (cached?.price) return { price: cached.price, ts: cached.ts };
     throw new Error(`Binance ticker invalid payload for ${data.symbol}`);

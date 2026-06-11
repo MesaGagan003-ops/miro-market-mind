@@ -37,21 +37,39 @@ export function subscribeBinance(
   let stopped = false;
   let lastPrice = 0;
   let lastFallbackPrice = 0;
+  let useFallback = false;
   const poll = async () => {
     while (!stopped) {
       try {
-        const t = await fetchBinancePrice({ data: { symbol } });
-        if (t.price && t.price !== lastPrice) {
-          lastPrice = t.price;
-          onTick(t);
-        } else if (t.price) {
-          // still emit periodic ticks so model recomputes
-          onTick(t);
+        if (useFallback) {
+          if (!coinGeckoId) {
+            await new Promise((r) => setTimeout(r, 800));
+            continue;
+          }
+          const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
+          if (t.price && t.price !== lastFallbackPrice) {
+            lastFallbackPrice = t.price;
+            opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+            onTick(t);
+          } else if (t.price) {
+            opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+            onTick(t);
+          }
+        } else {
+          const t = await fetchBinancePrice({ data: { symbol } });
+          if (t.price && t.price !== lastPrice) {
+            lastPrice = t.price;
+            onTick(t);
+          } else if (t.price) {
+            // still emit periodic ticks so model recomputes
+            onTick(t);
+          }
         }
       } catch (e) {
         if (coinGeckoId) {
           try {
             const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
+            useFallback = true;
             if (t.price && t.price !== lastFallbackPrice) {
               lastFallbackPrice = t.price;
               opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
@@ -63,19 +81,22 @@ export function subscribeBinance(
             continue;
           } catch (fallbackError) {
             console.debug("[subscribeBinance] CoinGecko fallback failed", fallbackError);
+            useFallback = true;
           }
         }
-        // Surface provider status so UI can display the failure
+        // Surface provider status so UI can display the failure once we switch away.
         try {
           opts?.onStatus?.({
-            provider: "binance",
-            state: "failing",
+            provider: useFallback ? "coingecko" : "binance",
+            state: useFallback ? "fallback" : "failing",
             detail: String((e as Error)?.message ?? e),
           });
         } catch (err) {
           console.debug("[subscribeBinance] onStatus handler failed", err);
         }
-        console.error("[subscribeBinance] error", e);
+        if (!useFallback) {
+          console.error("[subscribeBinance] error", e);
+        }
       }
       // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
       // between freshness and edge-function load.

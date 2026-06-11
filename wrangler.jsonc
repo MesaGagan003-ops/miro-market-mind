@@ -1,10 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "miro-market-mind",
+  "name": "miro-market-mind-app",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "dist/server/server.js",
   "assets": {
-    "directory": "dist/client"
-  },
+    "directory": "dist/client",
+    "binding": "ASSETS"
+  }
 }

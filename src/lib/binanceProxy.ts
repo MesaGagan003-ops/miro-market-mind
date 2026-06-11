@@ -213,14 +213,13 @@ export const fetchCoinGeckoPrice = createServerFn({ method: "GET" })
     const res = await fetch(url, { headers: { "User-Agent": "QuantumEdge/1.0" } });
     if (!res.ok) {
       if (res.status === 429 || res.status === 451) {
-        const fallback = (await fetchCoinGeckoMarketChart({ data: { id: data.id, days: 1 } })) as Array<{
-          ts: number;
-          price: number;
-        }>;
-        const last = fallback[fallback.length - 1];
-        if (last?.price) {
-          setCachedCoinGeckoPrice(data.id, last.price);
-          return { price: last.price, ts: last.ts };
+        const cachedFallbackHistory = getCachedCoinGeckoHistory(data.id);
+        if (cachedFallbackHistory && cachedFallbackHistory.data.length > 0) {
+          const last = cachedFallbackHistory.data[cachedFallbackHistory.data.length - 1];
+          if (last?.price) {
+            setCachedCoinGeckoPrice(data.id, last.price);
+            return { price: last.price, ts: last.ts };
+          }
         }
         const cachedFallback = getCachedCoinGeckoPrice(data.id);
         if (cachedFallback) return { price: cachedFallback.price, ts: cachedFallback.ts };

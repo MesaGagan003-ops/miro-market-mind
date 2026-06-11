@@ -363,6 +363,8 @@ function PredictionEngine() {
   const workerRef = useRef<Worker | null>(null);
   const lastReqRef = useRef<string | null>(null);
 
+  const lastResolveRef = useRef<number>(0);
+
   // Create worker on mount
   useEffect(() => {
     try {
@@ -519,7 +521,8 @@ function PredictionEngine() {
     llmSignal.bias,
     llmSignal.confidence,
     deepHistory.length,
-    modelSeries,
+    // explicitly ignoring modelSeries so it doesn't trigger on every tick,
+    // minuteBuckets is the stable trigger for a new minute.
   ]);
 
   // Trading-readiness derived state — moved out of useMemo to fix SSR
@@ -536,8 +539,14 @@ function PredictionEngine() {
     if (!prediction || currentPrice === 0) return;
     const now = Date.now();
     resolvePredictions(currentPrice, now);
+    
     // Cloud-side resolution + adaptive weight update (fire and forget)
-    void resolvePendingPredictions(coin.market, coin.id, timeframe.id, currentPrice);
+    // Throttle to avoid 409 and ERR_INSUFFICIENT_RESOURCES from repeating every tick
+    if (now - lastResolveRef.current > 15_000) {
+      lastResolveRef.current = now;
+      void resolvePendingPredictions(coin.market, coin.id, timeframe.id, currentPrice);
+    }
+    
     const interval = Math.max(30_000, (timeframe.minutes * 60 * 1000) / 4);
     if (now - lastRecordRef.current > interval) {
       lastRecordRef.current = now;

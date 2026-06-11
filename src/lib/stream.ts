@@ -32,9 +32,11 @@ export function subscribeBinance(
   symbol: string,
   onTick: TickHandler,
   opts?: StreamOptions,
+  coinGeckoId?: string,
 ): () => void {
   let stopped = false;
   let lastPrice = 0;
+  let lastFallbackPrice = 0;
   const poll = async () => {
     while (!stopped) {
       try {
@@ -47,6 +49,22 @@ export function subscribeBinance(
           onTick(t);
         }
       } catch (e) {
+        if (coinGeckoId) {
+          try {
+            const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
+            if (t.price && t.price !== lastFallbackPrice) {
+              lastFallbackPrice = t.price;
+              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+              onTick(t);
+            } else if (t.price) {
+              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
+              onTick(t);
+            }
+            continue;
+          } catch (fallbackError) {
+            console.debug("[subscribeBinance] CoinGecko fallback failed", fallbackError);
+          }
+        }
         // Surface provider status so UI can display the failure
         try {
           opts?.onStatus?.({
@@ -59,7 +77,9 @@ export function subscribeBinance(
         }
         console.error("[subscribeBinance] error", e);
       }
-      await new Promise((r) => setTimeout(r, 1500));
+      // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
+      // between freshness and edge-function load.
+      await new Promise((r) => setTimeout(r, 800));
     }
   };
   poll();
@@ -68,7 +88,10 @@ export function subscribeBinance(
   };
 }
 
-const YAHOO_POLL_MS = 30_000;
+// Yahoo Finance free intraday data lags ~1 min from market. Polling slower
+// than the data refresh just adds perceived delay — 10s keeps us close to
+// Yahoo's own refresh cadence without spamming.
+const YAHOO_POLL_MS = 10_000;
 
 export function subscribeCoinGecko(
   coinId: string,
@@ -102,7 +125,7 @@ export function subscribeCoinGecko(
           console.error("[subscribeCoinGecko] error", e);
         }
       }
-      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 5_000;
+      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 2_000;
       await new Promise((r) => setTimeout(r, waitMs));
     }
   };
@@ -180,7 +203,7 @@ export function subscribeAsset(
 ): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
-    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts);
+    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id);
     return subscribeCoinGecko(asset.id, onTick, opts);
   }
 
@@ -249,7 +272,15 @@ export async function fetchAssetHistory(
       state: "live",
       detail: "history",
     });
-    if (asset.binanceSymbol) return fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
+    if (asset.binanceSymbol) {
+      const rows = await fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
+      if (rows.length > 0) return rows;
+      const fallback = await fetchCoinGeckoHistory(asset.id, 1);
+      if (fallback.length > 0) {
+        opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: "history" });
+      }
+      return fallback;
+    }
     return fetchCoinGeckoHistory(asset.id, 1);
   }
 

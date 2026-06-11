@@ -225,6 +225,9 @@ export function ComparisonPanel({ coin }: Props) {
     };
   }, [rows]);
 
+  const selectedRange = RANGES.find((rangeOption) => rangeOption.key === range);
+  const predictFraction = selectedRange ? selectedRange.predictFraction : 0;
+
   return (
     <div className="panel p-4">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -232,7 +235,7 @@ export function ComparisonPanel({ coin }: Props) {
           <h3 className="font-display font-semibold text-sm">Actual vs Predicted</h3>
           <p className="text-[10px] text-muted-foreground">
             Backtest: train on the first portion, forecast the last{" "}
-            {(RANGES.find((r) => r.key === range)?.predictFraction ?? 0) * 100}% and compare.
+            {(predictFraction * 100)}% and compare.
           </p>
         </div>
         <div className="flex gap-1">

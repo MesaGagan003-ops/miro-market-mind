@@ -143,7 +143,8 @@ export async function fetchBinanceHistory(
 ): Promise<Tick[]> {
   try {
     return await fetchBinanceKlines({ data: { symbol, interval, limit } });
-  } catch {
+  } catch (error) {
+    void error;
     return [];
   }
 }
@@ -151,7 +152,8 @@ export async function fetchBinanceHistory(
 export async function fetchCoinGeckoHistory(coinId: string, days = 1): Promise<Tick[]> {
   try {
     return await fetchCoinGeckoMarketChart({ data: { id: coinId, days } });
-  } catch {
+  } catch (error) {
+    void error;
     return [];
   }
 }

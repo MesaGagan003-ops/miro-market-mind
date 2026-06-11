@@ -131,6 +131,7 @@ export function StrategicPlanPanel({
 
     const recentVol = calculateVolatility(recentPrices.slice(-10));
     const historicalVol = calculateVolatility(recentPrices.slice(-50));
+    const convergence = agentAnalysis?.convergence ?? 0;
 
     const volRatio = historicalVol > 0 ? recentVol / historicalVol : 1;
     const isVolExpanding = volRatio > 1.2;
@@ -138,7 +139,7 @@ export function StrategicPlanPanel({
 
     // Opportunity: expand when vol is low, contract when vol is high
     let opportunity = "NEUTRAL";
-    if (isVolContracting && (agentAnalysis?.convergence ?? 0) > 0.5) opportunity = "LOW_VOL_SETUP";
+    if (isVolContracting && convergence > 0.5) opportunity = "LOW_VOL_SETUP";
     if (isVolExpanding && prediction.hybridConfidence > 0.6) opportunity = "HIGH_VOL_TRADE";
 
     return {

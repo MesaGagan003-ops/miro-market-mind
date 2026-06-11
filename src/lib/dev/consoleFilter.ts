@@ -1,15 +1,16 @@
 // Dev-only console filter to suppress repeated Supabase gotrue lock warnings
-if (typeof window !== "undefined") {
+export function installConsoleFilter(): void {
+  if (typeof window === "undefined") return;
+
   const originalWarn = console.warn.bind(console);
-  console.warn = (...args: any[]) => {
+  console.warn = (...args: unknown[]) => {
     try {
       const text = args.map(String).join(" ");
-      if (text.includes('@supabase/gotrue-js: Lock "lock:sb-') || text.includes('was not released within 5000ms')) {
-        // swallow this noisy dev-only warning
+      if (text.includes('@supabase/gotrue-js: Lock "lock:sb-') || text.includes("was not released within 5000ms")) {
         return;
       }
-    } catch (e) {
-      // fall through
+    } catch {
+      // fall through to the original logger when filtering fails
     }
     originalWarn(...args);
   };

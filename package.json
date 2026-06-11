@@ -5,6 +5,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "prebuild": "rm -rf .wrangler/deploy",
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",

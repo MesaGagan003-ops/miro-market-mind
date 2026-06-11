@@ -65,9 +65,19 @@ function PredictionEngine() {
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES[2]); // 10m default
   const [ticks, setTicks] = useState<Tick[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
-  const [stats, setStats] = useState<AccuracyStats>(() =>
-    computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id),
-  );
+  const [stats, setStats] = useState<AccuracyStats>({
+    total: 0,
+    resolved: 0,
+    correct: 0,
+    rate: 0,
+    accuracy: 0,
+    brier: 0.25,
+    lastN: [],
+  });
+
+  useEffect(() => {
+    setStats(computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
+  }, [coin.market, coin.id, timeframe.id]);
   const [providerHealth, setProviderHealth] = useState<Record<string, ProviderHealthItem>>({});
   const [yahooTrain, setYahooTrain] = useState<number[]>([]);
   const [deepHistory, setDeepHistory] = useState<number[]>([]);

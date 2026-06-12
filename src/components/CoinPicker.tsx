@@ -61,7 +61,7 @@ export function CoinPicker({ value, onChange }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              loaded ? `Search ${coins.length.toLocaleString()} coins…` : "Loading coin list…"
+              loaded ? `Search ${coins.length.toLocaleString("en-US")} coins…` : "Loading coin list…"
             }
             className="w-full px-3 py-2 bg-input border-b border-border text-sm outline-none focus:border-primary"
           />

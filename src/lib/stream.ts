@@ -146,7 +146,7 @@ export function subscribeCoinGecko(
           console.error("[subscribeCoinGecko] error", e);
         }
       }
-      const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 2_000;
+      const waitMs = failStreak > 0 ? Math.min(60_000, 15_000 * (1 + failStreak)) : 15_000;
       await new Promise((r) => setTimeout(r, waitMs));
     }
   };

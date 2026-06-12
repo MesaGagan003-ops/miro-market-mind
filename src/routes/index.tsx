@@ -943,7 +943,7 @@ function DashboardCardHeader({
 }
 
 function formatLive(v: number): string {
-  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (v >= 1000) return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
   if (v >= 1) return v.toFixed(3);
   if (v >= 0.01) return v.toFixed(5);
   return v.toExponential(3);

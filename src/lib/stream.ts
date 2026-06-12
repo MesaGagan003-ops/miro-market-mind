@@ -143,7 +143,9 @@ export function subscribeCoinGecko(
         }
         // Avoid log storms in long-running sessions.
         if (failStreak <= 2 || failStreak % 10 === 0) {
-          console.error("[subscribeCoinGecko] error", e);
+          if (!String(e).includes("429")) {
+            console.error("[subscribeCoinGecko] error", e);
+          }
         }
       }
       const waitMs = failStreak > 0 ? Math.min(60_000, 15_000 * (1 + failStreak)) : 15_000;

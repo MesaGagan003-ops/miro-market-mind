@@ -126,16 +126,19 @@ function PredictionEngine() {
     setCurrentPrice(0);
 
     const init = async () => {
-      let hist: Tick[] = await fetchAssetHistory(coin, 240, { onStatus });
-      if (cancelled) return;
-      if (hist.length > 240) {
-        const step = Math.ceil(hist.length / 240);
-        hist = hist.filter((_, i) => i % step === 0);
+      try {
+        let hist: Tick[] = await fetchAssetHistory(coin, 240, { onStatus });
+        if (cancelled) return;
+        if (hist.length > 240) {
+          const step = Math.ceil(hist.length / 240);
+          hist = hist.filter((_, i) => i % step === 0);
+        }
+        setTicks(hist);
+        if (hist.length) setCurrentPrice(hist[hist.length - 1].price);
+      } catch (err) {
+        console.warn("[init] fetchAssetHistory failed", err);
       }
-      setTicks(hist);
-      if (hist.length) setCurrentPrice(hist[hist.length - 1].price);
     };
-
     init();
 
     let lastFlush = 0;
@@ -196,20 +199,24 @@ function PredictionEngine() {
         setYahooTrain([]);
         return;
       }
-      const rows = await fetchYahooHistory({
-        data: {
-          symbol: coin.yahooSymbol,
-          interval: "1m",
-          range: "7d",
-        },
-      });
-      if (cancelled) return;
-      setYahooTrain(rows.map((r) => r.price).slice(-300));
-      onStatus({
-        provider: "yfinance",
-        state: rows.length > 0 ? "live" : "failing",
-        detail: rows.length > 0 ? "history" : "empty",
-      });
+      try {
+        const rows = await fetchYahooHistory({
+          data: {
+            symbol: coin.yahooSymbol,
+            interval: "1m",
+            range: "7d",
+          },
+        });
+        if (cancelled) return;
+        setYahooTrain(rows.map((r) => r.price).slice(-300));
+        onStatus({
+          provider: "yfinance",
+          state: rows.length > 0 ? "live" : "failing",
+          detail: rows.length > 0 ? "history" : "empty",
+        });
+      } catch (err) {
+        console.warn("[loadYahoo] failed", err);
+      }
     };
     void loadYahoo();
     const id = setInterval(loadYahoo, 5 * 60 * 1000);
@@ -232,7 +239,7 @@ function PredictionEngine() {
         state: bars.length > 100 ? "live" : "failing",
         detail: `${bars.length} daily bars`,
       });
-    });
+    }).catch(e => console.warn("[deepHistory] failed", e));
     return () => {
       cancelled = true;
     };
@@ -243,7 +250,7 @@ function PredictionEngine() {
     setAdaptive(null);
     void loadWeights(coin.market, coin.id, timeframe.id).then((w) => {
       if (!cancelled) setAdaptive(w);
-    });
+    }).catch(e => console.warn("[loadWeights] failed", e));
     return () => {
       cancelled = true;
     };
@@ -554,7 +561,7 @@ function PredictionEngine() {
     // Throttle to avoid 409 and ERR_INSUFFICIENT_RESOURCES from repeating every tick
     if (now - lastResolveRef.current > 15_000) {
       lastResolveRef.current = now;
-      void resolvePendingPredictions(coin.market, coin.id, timeframe.id, currentPrice);
+      void resolvePendingPredictions(coin.market, coin.id, timeframe.id, currentPrice).catch(e => console.warn(e));
     }
     
     const interval = Math.max(30_000, (timeframe.minutes * 60 * 1000) / 4);
@@ -587,9 +594,9 @@ function PredictionEngine() {
           features: {
             market: coin.market,
           },
-        });
+        }).catch(e => console.warn(e));
         // Warm cache for adaptive weights (used by future hybrid runs)
-        void loadWeights(coin.market, coin.id, timeframe.id).then(setAdaptive);
+        void loadWeights(coin.market, coin.id, timeframe.id).then(setAdaptive).catch(e => console.warn(e));
       }
     }
     setStats(computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));

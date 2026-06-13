@@ -33,27 +33,61 @@ export function subscribeBinance(
   onTick: TickHandler,
   opts?: StreamOptions,
   coinGeckoId?: string,
+  yahooSymbol?: string,
 ): () => void {
   let stopped = false;
   let lastPrice = 0;
   let lastFallbackPrice = 0;
   let useFallback = false;
+  let cgFailStreak = 0;
+  let useYahoo = false;
+  let lastYahooTs = 0;
   const poll = async () => {
     while (!stopped) {
       try {
+        if (useYahoo && yahooSymbol) {
+          const rows = await fetchYahooHistory({
+            data: { symbol: yahooSymbol, interval: "1m", range: "1d" },
+          });
+          const last = rows[rows.length - 1];
+          if (last && last.price > 0) {
+            opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: symbol });
+            if (last.ts !== lastYahooTs) {
+              lastYahooTs = last.ts;
+              onTick({ ts: Date.now(), price: last.price });
+            } else {
+              onTick({ ts: Date.now(), price: last.price });
+            }
+          }
+          await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
+          continue;
+        }
         if (useFallback) {
           if (!coinGeckoId) {
+            // No CoinGecko id — escalate to Yahoo immediately if available.
+            if (yahooSymbol) {
+              useYahoo = true;
+              continue;
+            }
             await new Promise((r) => setTimeout(r, 800));
             continue;
           }
           const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
           if (t.price && t.price !== lastFallbackPrice) {
+            cgFailStreak = 0;
             lastFallbackPrice = t.price;
             opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
             onTick(t);
           } else if (t.price) {
+            cgFailStreak = 0;
             opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
             onTick(t);
+          } else {
+            cgFailStreak += 1;
+            if (cgFailStreak >= 3 && yahooSymbol) {
+              useYahoo = true;
+              continue;
+            }
           }
         } else {
           const t = await fetchBinancePrice({ data: { symbol } });
@@ -66,40 +100,43 @@ export function subscribeBinance(
           }
         }
       } catch (e) {
-        if (coinGeckoId) {
+        if (coinGeckoId && !useFallback) {
           try {
             const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
             useFallback = true;
-            if (t.price && t.price !== lastFallbackPrice) {
+            if (t.price) {
               lastFallbackPrice = t.price;
               opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
               onTick(t);
-            } else if (t.price) {
-              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
-              onTick(t);
             }
+            // wait then continue normal loop (now in fallback)
+            await new Promise((r) => setTimeout(r, 800));
             continue;
           } catch (fallbackError) {
             console.debug("[subscribeBinance] CoinGecko fallback failed", fallbackError);
             useFallback = true;
+            cgFailStreak += 1;
           }
+        } else if (useFallback) {
+          cgFailStreak += 1;
+        }
+        if (cgFailStreak >= 3 && yahooSymbol) {
+          useYahoo = true;
         }
         // Surface provider status so UI can display the failure once we switch away.
         try {
           opts?.onStatus?.({
-            provider: useFallback ? "coingecko" : "binance",
-            state: useFallback ? "fallback" : "failing",
+            provider: useYahoo ? "yahoo" : useFallback ? "coingecko" : "binance",
+            state: useYahoo ? "fallback" : useFallback ? "fallback" : "failing",
             detail: String((e as Error)?.message ?? e),
           });
         } catch (err) {
           console.debug("[subscribeBinance] onStatus handler failed", err);
         }
-        if (!useFallback) {
+        if (!useFallback && !useYahoo) {
           console.error("[subscribeBinance] error", e);
         }
       }
-      // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
-      // between freshness and edge-function load.
       await new Promise((r) => setTimeout(r, 800));
     }
   };
@@ -108,6 +145,7 @@ export function subscribeBinance(
     stopped = true;
   };
 }
+
 
 // Yahoo Finance free intraday data lags ~1 min from market. Polling slower
 // than the data refresh just adds perceived delay — 10s keeps us close to

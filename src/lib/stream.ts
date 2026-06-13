@@ -294,9 +294,11 @@ export function subscribeAsset(
 ): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
-    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id);
-    return subscribeCoinGecko(asset.id, onTick, opts);
+    if (asset.binanceSymbol)
+      return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id, asset.yahooSymbol);
+    return subscribeCoinGecko(asset.id, onTick, opts, asset.yahooSymbol);
   }
+
 
   if (asset.market === "forex") {
     const base = asset.forexBase ?? "EUR";

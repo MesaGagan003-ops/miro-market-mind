@@ -365,17 +365,35 @@ export async function fetchAssetHistory(
       state: "live",
       detail: "history",
     });
+    const tryYahoo = async (): Promise<Tick[]> => {
+      if (!asset.yahooSymbol) return [];
+      try {
+        const rows = await fetchYahooHistory({
+          data: { symbol: asset.yahooSymbol, interval: "1m", range: "1d" },
+        });
+        if (rows.length > 0) {
+          opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: "history" });
+        }
+        return rows;
+      } catch {
+        return [];
+      }
+    };
     if (asset.binanceSymbol) {
       const rows = await fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
       if (rows.length > 0) return rows;
       const fallback = await fetchCoinGeckoHistory(asset.id, 1);
       if (fallback.length > 0) {
         opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: "history" });
+        return fallback;
       }
-      return fallback;
+      return tryYahoo();
     }
-    return fetchCoinGeckoHistory(asset.id, 1);
+    const cg = await fetchCoinGeckoHistory(asset.id, 1);
+    if (cg.length > 0) return cg;
+    return tryYahoo();
   }
+
 
   if (asset.market === "forex") {
     const base = asset.forexBase ?? "EUR";

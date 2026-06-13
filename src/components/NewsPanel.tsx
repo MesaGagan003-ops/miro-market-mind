@@ -392,7 +392,7 @@ function SentimentChart({
 }
 
 function formatPrice(v: number): string {
-  if (v >= 1000) return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (v >= 1000) return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   if (v >= 1) return `$${v.toFixed(2)}`;
   if (v >= 0.01) return `$${v.toFixed(4)}`;
   return `$${v.toExponential(2)}`;
@@ -400,11 +400,13 @@ function formatPrice(v: number): string {
 
 function formatTime(ts: number, spanMs: number): string {
   const d = new Date(ts);
-  const spanH = spanMs / 3_600_000;
-  if (spanH < 6)
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-  if (spanH < 48)
-    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
-  if (spanH < 24 * 14) return d.toLocaleDateString([], { month: "short", day: "numeric" });
-  return d.toLocaleDateString([], { month: "short", year: "2-digit" });
+  const spanH = spanMs / 3600000;
+  if (spanH <= 24) {
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+  if (spanH <= 24 * 7) {
+    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+  }
+  if (spanH < 24 * 14) return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }

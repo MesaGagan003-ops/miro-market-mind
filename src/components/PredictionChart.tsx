@@ -138,7 +138,7 @@ export function PredictionChart({ history, prediction, currentPrice, minutesPerS
             labelFormatter={(label) => {
               const ts = typeof label === "number" ? label : Number(label);
               return Number.isFinite(ts)
-                ? new Date(ts).toLocaleString()
+                ? new Date(ts).toLocaleString("en-US")
                 : String(label ?? "");
             }}
             formatter={(value, name, item) => {
@@ -305,14 +305,14 @@ function formatTime(ts: number, spanMs: number): string {
     minute: "2-digit",
     hour12: false,
   };
-  if (spanH < 6) {
-    return d.toLocaleTimeString([], timeFormat);
+  if (spanH <= 24) {
+    return d.toLocaleTimeString("en-US", timeFormat);
   }
-  if (spanH < 48) {
-    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString([], timeFormat)}`;
+  if (spanH <= 24 * 7) {
+    return `${d.getDate().toString().padStart(2, "0")} ${d.toLocaleTimeString("en-US", timeFormat)}`;
   }
   if (spanH < 24 * 14) {
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
-  return d.toLocaleDateString([], { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }

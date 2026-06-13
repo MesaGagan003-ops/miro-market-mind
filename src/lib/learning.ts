@@ -231,8 +231,9 @@ async function updateWeightsFromOutcomes(
   cache.set(key(market, symbol, timeframe), next);
 
   try {
-    await supabase.from("model_weights").upsert(
-      {
+    const { upsertWeightsServer } = await import("./learning.functions");
+    await upsertWeightsServer({
+      data: {
         market,
         symbol,
         timeframe,
@@ -244,10 +245,8 @@ async function updateWeightsFromOutcomes(
         samples: next.samples,
         recent_brier: newBrier,
         recent_accuracy: newAcc,
-        updated_at: new Date().toISOString(),
       },
-      { onConflict: "market,symbol,timeframe" },
-    );
+    });
   } catch (e) {
     console.warn("[learning] upsert weights failed", e);
   }

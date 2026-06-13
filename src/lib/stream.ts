@@ -156,17 +156,43 @@ export function subscribeCoinGecko(
   coinId: string,
   onTick: TickHandler,
   opts?: StreamOptions,
+  yahooSymbol?: string,
 ): () => void {
   let stopped = false;
   let failStreak = 0;
+  let useYahoo = false;
+  let lastYahooTs = 0;
   const poll = async () => {
     while (!stopped) {
+      if (useYahoo && yahooSymbol) {
+        try {
+          const rows = await fetchYahooHistory({
+            data: { symbol: yahooSymbol, interval: "1m", range: "1d" },
+          });
+          const last = rows[rows.length - 1];
+          if (last && last.price > 0) {
+            opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: coinId });
+            if (last.ts !== lastYahooTs) lastYahooTs = last.ts;
+            onTick({ ts: Date.now(), price: last.price });
+          }
+        } catch (e) {
+          opts?.onStatus?.({
+            provider: "yahoo",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
+        }
+        await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
+        continue;
+      }
       try {
         const t = await fetchCoinGeckoPrice({ data: { id: coinId } });
         if (t.price) {
           failStreak = 0;
           opts?.onStatus?.({ provider: "coingecko", state: "live" });
           onTick(t);
+        } else {
+          failStreak += 1;
         }
       } catch (e) {
         failStreak += 1;
@@ -179,10 +205,13 @@ export function subscribeCoinGecko(
         } catch (err) {
           console.debug("[subscribeCoinGecko] onStatus handler failed", err);
         }
-        // Avoid log storms in long-running sessions.
         if (failStreak <= 2 || failStreak % 10 === 0) {
           console.error("[subscribeCoinGecko] error", e);
         }
+      }
+      if (failStreak >= 3 && yahooSymbol) {
+        useYahoo = true;
+        continue;
       }
       const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 2_000;
       await new Promise((r) => setTimeout(r, waitMs));
@@ -193,6 +222,7 @@ export function subscribeCoinGecko(
     stopped = true;
   };
 }
+
 
 // Seed with historical Binance klines via the server proxy
 export async function fetchBinanceHistory(

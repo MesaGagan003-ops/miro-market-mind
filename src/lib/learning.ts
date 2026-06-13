@@ -165,13 +165,10 @@ export async function resolvePendingPredictions(
       };
     });
 
-    const { error } = await supabase.from("prediction_outcomes").upsert(outcomes, { 
-      onConflict: "prediction_id", 
-      ignoreDuplicates: true 
-    });
-    
-    if (error) {
-      console.warn("[learning] upsert outcomes error", error);
+    const { upsertOutcomesServer } = await import("./learning.functions");
+    const { ok } = await upsertOutcomesServer({ data: { outcomes } });
+    if (!ok) {
+      console.warn("[learning] upsert outcomes failed");
     }
 
     // EMA-update component weights: shrink weights toward 0 when Brier is high.

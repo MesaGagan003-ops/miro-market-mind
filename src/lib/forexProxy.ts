@@ -88,11 +88,12 @@ export const fetchForexHistory = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     if (data.mode !== "free") {
       try {
+        // Never fall back to the server's TWELVEDATA_API_KEY (see fetchForexPrice).
         const p = await fetchPremiumHistory(
           data.base,
           data.quote,
           data.limit,
-          data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "",
+          data.premiumApiKey,
         );
         if (p.rows.length > 0) return p.rows;
       } catch (e) {

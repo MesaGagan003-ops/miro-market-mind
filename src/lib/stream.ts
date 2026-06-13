@@ -56,11 +56,13 @@ export function subscribeBinance(
             onTick(t);
           }
         } else {
-          const t = await fetchBinancePrice({ data: { symbol } });
-          if (t.price && t.price !== lastPrice) {
+          const raw = await fetchBinancePrice({ data: { symbol } });
+          // fetchBinancePrice can return a scalar tick or an array (Yahoo fallback rows)
+          const t = Array.isArray(raw) ? raw[raw.length - 1] : raw;
+          if (t && t.price && t.price !== lastPrice) {
             lastPrice = t.price;
             onTick(t);
-          } else if (t.price) {
+          } else if (t && t.price) {
             // still emit periodic ticks so model recomputes
             onTick(t);
           }

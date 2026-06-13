@@ -2,16 +2,49 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
+/**
+ * Safely read an env var across all runtimes:
+ *  1. Vite build-time replacement (VITE_* prefix)   — works everywhere
+ *  2. import.meta.env (Vite SSR)
+ *  3. globalThis.__cf_env__ — Cloudflare Workers env bindings injected by the adapter
+ *  4. process.env (Node.js dev server) — guarded with try/catch because
+ *     `process` is not defined in the Cloudflare Workers runtime.
+ */
+function getEnv(viteKey: string, nodeKey: string): string | undefined {
+  // 1. Vite build-time replacement — always preferred
+  const viteVal = (import.meta.env as Record<string, string | undefined>)[viteKey];
+  if (viteVal) return viteVal;
+
+  // 2. Cloudflare Workers env object injected into globalThis by the CF adapter
+  const cfEnv = (globalThis as Record<string, unknown>).__cf_env__;
+  if (cfEnv && typeof cfEnv === "object" && nodeKey in cfEnv) {
+    return (cfEnv as Record<string, string>)[nodeKey];
+  }
+
+  // 3. Node.js process.env (dev server) — wrapped so it doesn't crash CF Workers
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const val = (globalThis as any).process?.env?.[nodeKey];
+    if (val) return val;
+  } catch {
+    // process is not defined on Cloudflare Workers — silently ignore
+  }
+
+  return undefined;
+}
+
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL = getEnv("VITE_SUPABASE_URL", "SUPABASE_URL");
+  const SUPABASE_PUBLISHABLE_KEY = getEnv(
+    "VITE_SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_PUBLISHABLE_KEY",
+  );
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error(
-      "Missing Supabase environment variables. Ensure SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (or VITE_ prefixed versions) are set in your .env file.",
+      "Missing Supabase environment variables. " +
+        "Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your .env file, " +
+        "and add them as Cloudflare secrets via: wrangler secret put SUPABASE_URL",
     );
   }
 

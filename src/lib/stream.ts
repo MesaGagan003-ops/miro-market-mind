@@ -33,27 +33,61 @@ export function subscribeBinance(
   onTick: TickHandler,
   opts?: StreamOptions,
   coinGeckoId?: string,
+  yahooSymbol?: string,
 ): () => void {
   let stopped = false;
   let lastPrice = 0;
   let lastFallbackPrice = 0;
   let useFallback = false;
+  let cgFailStreak = 0;
+  let useYahoo = false;
+  let lastYahooTs = 0;
   const poll = async () => {
     while (!stopped) {
       try {
+        if (useYahoo && yahooSymbol) {
+          const rows = await fetchYahooHistory({
+            data: { symbol: yahooSymbol, interval: "1m", range: "1d" },
+          });
+          const last = rows[rows.length - 1];
+          if (last && last.price > 0) {
+            opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: symbol });
+            if (last.ts !== lastYahooTs) {
+              lastYahooTs = last.ts;
+              onTick({ ts: Date.now(), price: last.price });
+            } else {
+              onTick({ ts: Date.now(), price: last.price });
+            }
+          }
+          await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
+          continue;
+        }
         if (useFallback) {
           if (!coinGeckoId) {
+            // No CoinGecko id — escalate to Yahoo immediately if available.
+            if (yahooSymbol) {
+              useYahoo = true;
+              continue;
+            }
             await new Promise((r) => setTimeout(r, 800));
             continue;
           }
           const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
           if (t.price && t.price !== lastFallbackPrice) {
+            cgFailStreak = 0;
             lastFallbackPrice = t.price;
             opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
             onTick(t);
           } else if (t.price) {
+            cgFailStreak = 0;
             opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
             onTick(t);
+          } else {
+            cgFailStreak += 1;
+            if (cgFailStreak >= 3 && yahooSymbol) {
+              useYahoo = true;
+              continue;
+            }
           }
         } else {
           const t = await fetchBinancePrice({ data: { symbol } });
@@ -66,40 +100,43 @@ export function subscribeBinance(
           }
         }
       } catch (e) {
-        if (coinGeckoId) {
+        if (coinGeckoId && !useFallback) {
           try {
             const t = await fetchCoinGeckoPrice({ data: { id: coinGeckoId } });
             useFallback = true;
-            if (t.price && t.price !== lastFallbackPrice) {
+            if (t.price) {
               lastFallbackPrice = t.price;
               opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
               onTick(t);
-            } else if (t.price) {
-              opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: symbol });
-              onTick(t);
             }
+            // wait then continue normal loop (now in fallback)
+            await new Promise((r) => setTimeout(r, 800));
             continue;
           } catch (fallbackError) {
             console.debug("[subscribeBinance] CoinGecko fallback failed", fallbackError);
             useFallback = true;
+            cgFailStreak += 1;
           }
+        } else if (useFallback) {
+          cgFailStreak += 1;
+        }
+        if (cgFailStreak >= 3 && yahooSymbol) {
+          useYahoo = true;
         }
         // Surface provider status so UI can display the failure once we switch away.
         try {
           opts?.onStatus?.({
-            provider: useFallback ? "coingecko" : "binance",
-            state: useFallback ? "fallback" : "failing",
+            provider: useYahoo ? "yahoo" : useFallback ? "coingecko" : "binance",
+            state: useYahoo ? "fallback" : useFallback ? "fallback" : "failing",
             detail: String((e as Error)?.message ?? e),
           });
         } catch (err) {
           console.debug("[subscribeBinance] onStatus handler failed", err);
         }
-        if (!useFallback) {
+        if (!useFallback && !useYahoo) {
           console.error("[subscribeBinance] error", e);
         }
       }
-      // Binance ticker updates ~every 100ms upstream; 800ms is the sweet spot
-      // between freshness and edge-function load.
       await new Promise((r) => setTimeout(r, 800));
     }
   };
@@ -108,6 +145,7 @@ export function subscribeBinance(
     stopped = true;
   };
 }
+
 
 // Yahoo Finance free intraday data lags ~1 min from market. Polling slower
 // than the data refresh just adds perceived delay — 10s keeps us close to
@@ -118,17 +156,43 @@ export function subscribeCoinGecko(
   coinId: string,
   onTick: TickHandler,
   opts?: StreamOptions,
+  yahooSymbol?: string,
 ): () => void {
   let stopped = false;
   let failStreak = 0;
+  let useYahoo = false;
+  let lastYahooTs = 0;
   const poll = async () => {
     while (!stopped) {
+      if (useYahoo && yahooSymbol) {
+        try {
+          const rows = await fetchYahooHistory({
+            data: { symbol: yahooSymbol, interval: "1m", range: "1d" },
+          });
+          const last = rows[rows.length - 1];
+          if (last && last.price > 0) {
+            opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: coinId });
+            if (last.ts !== lastYahooTs) lastYahooTs = last.ts;
+            onTick({ ts: Date.now(), price: last.price });
+          }
+        } catch (e) {
+          opts?.onStatus?.({
+            provider: "yahoo",
+            state: "failing",
+            detail: String((e as Error)?.message ?? e),
+          });
+        }
+        await new Promise((r) => setTimeout(r, YAHOO_POLL_MS));
+        continue;
+      }
       try {
         const t = await fetchCoinGeckoPrice({ data: { id: coinId } });
         if (t.price) {
           failStreak = 0;
           opts?.onStatus?.({ provider: "coingecko", state: "live" });
           onTick(t);
+        } else {
+          failStreak += 1;
         }
       } catch (e) {
         failStreak += 1;
@@ -141,10 +205,13 @@ export function subscribeCoinGecko(
         } catch (err) {
           console.debug("[subscribeCoinGecko] onStatus handler failed", err);
         }
-        // Avoid log storms in long-running sessions.
         if (failStreak <= 2 || failStreak % 10 === 0) {
           console.error("[subscribeCoinGecko] error", e);
         }
+      }
+      if (failStreak >= 3 && yahooSymbol) {
+        useYahoo = true;
+        continue;
       }
       const waitMs = failStreak > 0 ? Math.min(60_000, 5_000 * (1 + failStreak)) : 2_000;
       await new Promise((r) => setTimeout(r, waitMs));
@@ -155,6 +222,7 @@ export function subscribeCoinGecko(
     stopped = true;
   };
 }
+
 
 // Seed with historical Binance klines via the server proxy
 export async function fetchBinanceHistory(
@@ -226,9 +294,11 @@ export function subscribeAsset(
 ): () => void {
   if (asset.market === "crypto") {
     opts?.onStatus?.({ provider: asset.binanceSymbol ? "binance" : "coingecko", state: "live" });
-    if (asset.binanceSymbol) return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id);
-    return subscribeCoinGecko(asset.id, onTick, opts);
+    if (asset.binanceSymbol)
+      return subscribeBinance(asset.binanceSymbol, onTick, opts, asset.id, asset.yahooSymbol);
+    return subscribeCoinGecko(asset.id, onTick, opts, asset.yahooSymbol);
   }
+
 
   if (asset.market === "forex") {
     const base = asset.forexBase ?? "EUR";
@@ -295,17 +365,35 @@ export async function fetchAssetHistory(
       state: "live",
       detail: "history",
     });
+    const tryYahoo = async (): Promise<Tick[]> => {
+      if (!asset.yahooSymbol) return [];
+      try {
+        const rows = await fetchYahooHistory({
+          data: { symbol: asset.yahooSymbol, interval: "1m", range: "1d" },
+        });
+        if (rows.length > 0) {
+          opts?.onStatus?.({ provider: "yahoo", state: "fallback", detail: "history" });
+        }
+        return rows;
+      } catch {
+        return [];
+      }
+    };
     if (asset.binanceSymbol) {
       const rows = await fetchBinanceHistory(asset.binanceSymbol, "1m", limit);
       if (rows.length > 0) return rows;
       const fallback = await fetchCoinGeckoHistory(asset.id, 1);
       if (fallback.length > 0) {
         opts?.onStatus?.({ provider: "coingecko", state: "fallback", detail: "history" });
+        return fallback;
       }
-      return fallback;
+      return tryYahoo();
     }
-    return fetchCoinGeckoHistory(asset.id, 1);
+    const cg = await fetchCoinGeckoHistory(asset.id, 1);
+    if (cg.length > 0) return cg;
+    return tryYahoo();
   }
+
 
   if (asset.market === "forex") {
     const base = asset.forexBase ?? "EUR";

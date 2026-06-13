@@ -4,6 +4,11 @@
 // weights based on Brier score so the hybrid engine learns from mistakes.
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  recordPredictionServer,
+  upsertOutcomesServer,
+  upsertWeightsServer,
+} from "./learning.functions";
 
 export interface AdaptiveWeights {
   arima: number;
@@ -87,7 +92,6 @@ export interface PredictionRecord {
 
 export async function recordPredictionCloud(p: PredictionRecord): Promise<string | null> {
   try {
-    const { recordPredictionServer } = await import("./learning.functions");
     const { id } = await recordPredictionServer({
       data: {
         market: p.market,
@@ -165,7 +169,6 @@ export async function resolvePendingPredictions(
       };
     });
 
-    const { upsertOutcomesServer } = await import("./learning.functions");
     const { ok } = await upsertOutcomesServer({ data: { outcomes } });
     if (!ok) {
       console.warn("[learning] upsert outcomes failed");
@@ -231,7 +234,6 @@ async function updateWeightsFromOutcomes(
   cache.set(key(market, symbol, timeframe), next);
 
   try {
-    const { upsertWeightsServer } = await import("./learning.functions");
     await upsertWeightsServer({
       data: {
         market,

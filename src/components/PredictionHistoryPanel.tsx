@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,10 +21,10 @@ export function PredictionHistoryPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<boolean | null>(null);
+  const [allPredictions, setAllPredictions] = useState<PastPrediction[]>([]);
 
-  const allPredictions = useMemo(() => {
-    const list = loadPredictions();
-    return list.filter((p) => p.correct !== undefined).sort((a, b) => b.startTs - a.startTs);
+  useEffect(() => {
+    setAllPredictions(loadPredictions().filter((p) => p.correct !== undefined).sort((a, b) => b.startTs - a.startTs));
   }, []);
 
   const filteredPredictions = useMemo(() => {
@@ -72,10 +72,9 @@ export function PredictionHistoryPanel() {
     if (pred) {
       pred.correct = corrected;
       savePredictions(list);
+      setAllPredictions(list.filter((p) => p.correct !== undefined).sort((a, b) => b.startTs - a.startTs));
       setEditingId(null);
       setEditValue(null);
-      // Trigger re-render by updating state
-      setTimeout(() => setEditingId(null), 0);
     }
   };
 

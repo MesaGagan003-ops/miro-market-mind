@@ -87,26 +87,22 @@ export interface PredictionRecord {
 
 export async function recordPredictionCloud(p: PredictionRecord): Promise<string | null> {
   try {
-    const { data, error } = await supabase
-      .from("predictions")
-      .insert({
+    const { recordPredictionServer } = await import("./learning.functions");
+    const { id } = await recordPredictionServer({
+      data: {
         market: p.market,
         symbol: p.symbol,
         timeframe: p.timeframe,
-        spot_price: p.spotPrice,
-        predicted_price: p.predictedPrice,
+        spotPrice: p.spotPrice,
+        predictedPrice: p.predictedPrice,
         direction: p.direction,
-        horizon_seconds: p.horizonSeconds,
-        hybrid_confidence: p.hybridConfidence,
-        weights: p.weights as never,
-        features: (p.features ?? null) as never,
-        llm_bias: null,
-        resolves_at: new Date(Date.now() + p.horizonSeconds * 1000).toISOString(),
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    return data?.id ?? null;
+        horizonSeconds: p.horizonSeconds,
+        hybridConfidence: p.hybridConfidence,
+        weights: p.weights,
+        features: p.features ?? null,
+      },
+    });
+    return id;
   } catch (e) {
     console.warn("[learning] recordPrediction failed", e);
     return null;
@@ -169,13 +165,10 @@ export async function resolvePendingPredictions(
       };
     });
 
-    const { error } = await supabase.from("prediction_outcomes").upsert(outcomes, { 
-      onConflict: "prediction_id", 
-      ignoreDuplicates: true 
-    });
-    
-    if (error) {
-      console.warn("[learning] upsert outcomes error", error);
+    const { upsertOutcomesServer } = await import("./learning.functions");
+    const { ok } = await upsertOutcomesServer({ data: { outcomes } });
+    if (!ok) {
+      console.warn("[learning] upsert outcomes failed");
     }
 
     // EMA-update component weights: shrink weights toward 0 when Brier is high.
@@ -238,8 +231,9 @@ async function updateWeightsFromOutcomes(
   cache.set(key(market, symbol, timeframe), next);
 
   try {
-    await supabase.from("model_weights").upsert(
-      {
+    const { upsertWeightsServer } = await import("./learning.functions");
+    await upsertWeightsServer({
+      data: {
         market,
         symbol,
         timeframe,
@@ -251,10 +245,8 @@ async function updateWeightsFromOutcomes(
         samples: next.samples,
         recent_brier: newBrier,
         recent_accuracy: newAcc,
-        updated_at: new Date().toISOString(),
       },
-      { onConflict: "market,symbol,timeframe" },
-    );
+    });
   } catch (e) {
     console.warn("[learning] upsert weights failed", e);
   }

@@ -45,17 +45,20 @@ function mkHeaders(apiKey: string, jwt?: string): Record<string, string> {
 
 async function loginSmartApi(creds?: SmartRuntimeCreds): Promise<string> {
   const now = Date.now();
-  const apiKey = creds?.smartApiKey || process.env.ANGLEONE_API_KEY || "";
-  const clientCode = creds?.smartClientCode || process.env.ANGLEONE_CLIENT_CODE;
-  const password = creds?.smartPassword || process.env.ANGLEONE_PASSWORD;
-  const totp = creds?.smartTotp || process.env.ANGLEONE_TOTP;
+  // SECURITY: never fall back to ANGLEONE_* env credentials. These server functions
+  // are publicly reachable; an env fallback would let any caller authenticate
+  // against the application's own broker account. The caller MUST supply credentials.
+  const apiKey = creds?.smartApiKey || "";
+  const clientCode = creds?.smartClientCode || "";
+  const password = creds?.smartPassword || "";
+  const totp = creds?.smartTotp || "";
   const credKey = `${apiKey}:${clientCode}`;
   if (cachedToken && now < tokenUntil && cachedCredKey === credKey) return cachedToken;
 
   const base = process.env.ANGLEONE_BASE_URL ?? DEFAULT_BASE;
 
   if (!clientCode || !password || !totp || !apiKey) {
-    throw new Error("Missing AngleOne credentials in environment");
+    throw new Error("Missing AngleOne credentials (must be supplied by caller)");
   }
 
   const res = await fetch(`${base}/rest/auth/angelbroking/user/v1/loginByPassword`, {
@@ -106,7 +109,7 @@ export const fetchSmartApiLtp = createServerFn({ method: "GET" })
     const base = process.env.ANGLEONE_BASE_URL ?? DEFAULT_BASE;
 
     try {
-      const apiKey = data.smartApiKey || process.env.ANGLEONE_API_KEY || "";
+      const apiKey = data.smartApiKey;
       const jwt = await loginSmartApi(data);
       const res = await fetch(`${base}/rest/secure/angelbroking/order/v1/getLtpData`, {
         method: "POST",
@@ -170,7 +173,7 @@ export const fetchSmartApiHistory = createServerFn({ method: "GET" })
     const start = new Date(end.getTime() - data.limit * 60 * 1000);
 
     try {
-      const apiKey = data.smartApiKey || process.env.ANGLEONE_API_KEY || "";
+      const apiKey = data.smartApiKey;
       const jwt = await loginSmartApi(data);
       const res = await fetch(`${base}/rest/secure/angelbroking/historical/v1/getCandleData`, {
         method: "POST",

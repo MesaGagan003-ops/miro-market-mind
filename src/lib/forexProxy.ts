@@ -61,11 +61,10 @@ export const fetchForexPrice = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     if (data.mode !== "free") {
       try {
-        return await fetchPremiumLatest(
-          data.base,
-          data.quote,
-          data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "",
-        );
+        // Never fall back to the server's TWELVEDATA_API_KEY — this endpoint is
+        // publicly reachable and the fallback would let any caller drain the
+        // project's paid TwelveData quota.
+        return await fetchPremiumLatest(data.base, data.quote, data.premiumApiKey);
       } catch (e) {
         if (data.mode === "premium") throw e;
       }
@@ -89,11 +88,12 @@ export const fetchForexHistory = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     if (data.mode !== "free") {
       try {
+        // Never fall back to the server's TWELVEDATA_API_KEY (see fetchForexPrice).
         const p = await fetchPremiumHistory(
           data.base,
           data.quote,
           data.limit,
-          data.premiumApiKey || process.env.TWELVEDATA_API_KEY || "",
+          data.premiumApiKey,
         );
         if (p.rows.length > 0) return p.rows;
       } catch (e) {

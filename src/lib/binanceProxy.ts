@@ -193,7 +193,7 @@ export const fetchBinancePrice = createServerFn({ method: "GET" })
     }
 
     const fallback = (await fallbackBinanceToYahoo(data.symbol)) ?? (await fallbackBinanceToCoinGecko(data.symbol));
-    if (fallback) return fallback;
+    if (fallback && !Array.isArray(fallback)) return fallback;
     if (cached?.price) return { price: cached.price, ts: cached.ts };
     throw new Error(`Binance ticker invalid payload for ${data.symbol}`);
   });

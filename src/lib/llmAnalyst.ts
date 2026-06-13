@@ -22,7 +22,10 @@ export interface AnalystOutput {
 export const llmAnalyst = createServerFn({ method: "POST" })
   .inputValidator((d: AnalystInput) => d)
   .handler(async ({ data }): Promise<AnalystOutput> => {
-    const key = data.apiKey || process.env.LOVABLE_API_KEY;
+    // Require caller-provided key — never fall back to the server's LOVABLE_API_KEY,
+    // since this server function is publicly reachable and would otherwise drain
+    // the project's AI quota for any anonymous caller.
+    const key = data.apiKey;
     if (!key) return { bias: 0, confidence: 0, rationale: "LLM key missing" };
 
     const news = data.newsTitles

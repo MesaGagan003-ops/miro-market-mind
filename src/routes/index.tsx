@@ -42,6 +42,10 @@ import { TechnicalIndicatorMetrics } from "@/components/TechnicalIndicatorMetric
 import { PredictionHistoryPanel } from "@/components/PredictionHistoryPanel";
 
 export const Route = createFileRoute("/")({
+  // This dashboard renders live ticks, timestamps, and prices that legitimately
+  // differ between server and client (Date.now(), async fetches). Disabling SSR
+  // avoids React #418 hydration errors that otherwise crash the tree.
+  ssr: false,
   head: () => ({
     meta: [
       { title: "MIRO — Physics-based Market Prediction Engine" },
@@ -59,6 +63,7 @@ export const Route = createFileRoute("/")({
   }),
   component: PredictionEngine,
 });
+
 
 function PredictionEngine() {
   const [coin, setCoin] = useState<MarketAsset>(FEATURED_ASSETS[0]);

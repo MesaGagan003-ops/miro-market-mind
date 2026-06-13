@@ -109,7 +109,7 @@ export const fetchSmartApiLtp = createServerFn({ method: "GET" })
     const base = process.env.ANGLEONE_BASE_URL ?? DEFAULT_BASE;
 
     try {
-      const apiKey = data.smartApiKey || process.env.ANGLEONE_API_KEY || "";
+      const apiKey = data.smartApiKey;
       const jwt = await loginSmartApi(data);
       const res = await fetch(`${base}/rest/secure/angelbroking/order/v1/getLtpData`, {
         method: "POST",

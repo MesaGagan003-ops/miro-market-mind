@@ -173,7 +173,7 @@ export const fetchSmartApiHistory = createServerFn({ method: "GET" })
     const start = new Date(end.getTime() - data.limit * 60 * 1000);
 
     try {
-      const apiKey = data.smartApiKey || process.env.ANGLEONE_API_KEY || "";
+      const apiKey = data.smartApiKey;
       const jwt = await loginSmartApi(data);
       const res = await fetch(`${base}/rest/secure/angelbroking/historical/v1/getCandleData`, {
         method: "POST",

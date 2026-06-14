@@ -131,8 +131,17 @@ function PredictionEngine() {
     setCurrentPrice(0);
 
     const init = async () => {
-      let hist: Tick[] = await fetchAssetHistory(coin, 240, { onStatus });
+      let hist: Tick[] = [];
+      try {
+        hist = await fetchAssetHistory(coin, 240, { onStatus });
+      } catch (error) {
+        console.warn("[PredictionEngine] fetchAssetHistory failed", {
+          asset: `${coin.market}:${coin.id}`,
+          error,
+        });
+      }
       if (cancelled) return;
+      hist = hist.filter((tick) => Number.isFinite(tick.ts) && Number.isFinite(tick.price) && tick.price > 0);
       if (hist.length > 240) {
         const step = Math.ceil(hist.length / 240);
         hist = hist.filter((_, i) => i % step === 0);
@@ -175,6 +184,7 @@ function PredictionEngine() {
     const unsub = subscribeAsset(
       coin,
       (t) => {
+        if (!Number.isFinite(t.ts) || !Number.isFinite(t.price) || t.price <= 0) return;
         pending = t;
         const now = Date.now();
         const since = now - lastFlush;
@@ -201,19 +211,31 @@ function PredictionEngine() {
         setYahooTrain([]);
         return;
       }
-      const rows = await fetchYahooHistory({
-        data: {
-          symbol: coin.yahooSymbol,
-          interval: "1m",
-          range: "7d",
-        },
-      });
+      let rows: Tick[] = [];
+      try {
+        rows = await fetchYahooHistory({
+          data: {
+            symbol: coin.yahooSymbol,
+            interval: "1m",
+            range: "7d",
+          },
+        });
+      } catch (error) {
+        console.warn("[PredictionEngine] yahoo training load failed", {
+          asset: `${coin.market}:${coin.id}`,
+          error,
+        });
+      }
       if (cancelled) return;
-      setYahooTrain(rows.map((r) => r.price).slice(-300));
+      const prices = rows
+        .filter((row) => Number.isFinite(row.price) && row.price > 0)
+        .map((r) => r.price)
+        .slice(-300);
+      setYahooTrain(prices);
       onStatus({
         provider: "yfinance",
-        state: rows.length > 0 ? "live" : "failing",
-        detail: rows.length > 0 ? "history" : "empty",
+        state: prices.length > 0 ? "live" : "failing",
+        detail: prices.length > 0 ? "history" : "empty",
       });
     };
     void loadYahoo();

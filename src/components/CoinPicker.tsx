@@ -20,10 +20,22 @@ export function CoinPicker({ value, onChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadAllAssets().then((all) => {
-      setCoins(all);
-      setLoaded(true);
-    });
+    let cancelled = false;
+    loadAllAssets()
+      .then((all) => {
+        if (cancelled) return;
+        if (Array.isArray(all) && all.length > 0) {
+          setCoins(all);
+        }
+        setLoaded(true);
+      })
+      .catch((error) => {
+        console.warn("[CoinPicker] loadAllAssets failed", error);
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

@@ -430,9 +430,10 @@ export async function fetchAssetHistory(
     detail: "history (free delayed)",
   });
   try {
-    return await fetchYahooHistory({
+    const rows = await fetchYahooHistory({
       data: { symbol: asset.yahooSymbol, interval: "1m", range: "1d" },
     });
+    return rows.filter((row) => Number.isFinite(row.ts) && Number.isFinite(row.price) && row.price > 0);
   } catch (e) {
     opts?.onStatus?.({
       provider: `${exchange}:yahoo`,

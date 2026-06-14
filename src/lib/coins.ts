@@ -38,12 +38,23 @@ export async function loadAllCoins(): Promise<Coin[]> {
   if (coinCache) return coinCache;
   const [list, binArr] = await Promise.all([
     fetch("https://api.coingecko.com/api/v3/coins/list")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : []))
       .catch(() => []),
     fetchBinanceUsdtBases().catch(() => [] as string[]),
   ]);
   const binSet = new Set<string>(binArr);
-  const coins: Coin[] = (list as Array<{ id: string; symbol: string; name: string }>).map((c) => {
+  const safeList = Array.isArray(list) ? list : [];
+  const coins: Coin[] = (safeList as Array<{ id: string; symbol: string; name: string }>)
+    .filter(
+      (c) =>
+        typeof c?.id === "string" &&
+        typeof c?.symbol === "string" &&
+        typeof c?.name === "string" &&
+        c.id.length > 0 &&
+        c.symbol.length > 0 &&
+        c.name.length > 0,
+    )
+    .map((c) => {
     const sym = c.symbol.toLowerCase();
     return {
       id: c.id,
@@ -51,7 +62,7 @@ export async function loadAllCoins(): Promise<Coin[]> {
       name: c.name,
       binanceSymbol: binSet.has(sym) ? `${sym}usdt` : undefined,
     };
-  });
+    });
   // Sort: Binance-supported first, then alphabetical
   coins.sort((a, b) => {
     if (!!a.binanceSymbol !== !!b.binanceSymbol) return a.binanceSymbol ? -1 : 1;

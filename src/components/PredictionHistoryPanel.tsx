@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,9 +22,16 @@ export function PredictionHistoryPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<boolean | null>(null);
 
-  const allPredictions = useMemo(() => {
+  // Use state + useEffect instead of useMemo(loadPredictions) to avoid SSR
+  // hydration mismatches: localStorage is unavailable on the server, so the
+  // server always renders with an empty list. The effect populates it after
+  // mount, which matches the client's initial render.
+  const [allPredictions, setAllPredictions] = useState<ReturnType<typeof loadPredictions>>([]);
+  useEffect(() => {
     const list = loadPredictions();
-    return list.filter((p) => p.correct !== undefined).sort((a, b) => b.startTs - a.startTs);
+    setAllPredictions(
+      list.filter((p) => p.correct !== undefined).sort((a, b) => b.startTs - a.startTs),
+    );
   }, []);
 
   const filteredPredictions = useMemo(() => {

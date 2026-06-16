@@ -3,9 +3,9 @@
   "name": "miro-market-mind",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "dist/server/server.js",
+  "main": "./worker.js",
   "assets": {
-    "directory": "dist/client",
+    "directory": "./",
     "binding": "ASSETS"
   },
   // Non-secret vars (safe to commit). Secrets must be set via:

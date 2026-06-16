@@ -1,0 +1,628 @@
+// Cloudflare Worker to serve the MIRO Market Workstation
+// This worker serves the single-file HTML application
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Serve Split.js from CDN if requested
+    if (url.pathname.endsWith('split.min.js')) {
+      return fetch('https://cdn.jsdelivr.net/npm/split.js@1.0.6/dist/split.min.js');
+    }
+
+    // Serve the main application
+    if (url.pathname === '/' || url.pathname === '') {
+      return new Response(MIRO_HTML, {
+        headers: {
+          'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'public, max-age=300' // 5 minutes
+        }
+      });
+    }
+
+    // Handle 404
+    return new Response('Not Found', { status: 404 });
+  }
+};
+
+// The HTML content - this is the single file application
+const MIRO_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MIRO — Market Prediction Workstation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root {
+    --base: #0d0d10;
+    --accent-purple: #7f77dd;
+    --green: #1d9e75;
+    --red: #e24b4a;
+    --amber: #ba7517;
+    --foreground: #e0e0e0;
+    --muted: #8a8a8a;
+    --border: #2a2a2a;
+    --background: #111118;
+    --card: #1a1a22;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--base);
+    color: var(--foreground);
+    font-family: 'Courier New', Courier, monospace;
+    height: 100vh;
+    overflow: hidden;
+  }
+  /* Ribbon toolbar */
+  #ribbon {
+    background: linear-gradient(180deg, var(--background) 0%, var(--base) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  #ribbon .tab-group {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+  }
+  #ribbon .tab-group button {
+    background: var(--base);
+    color: var(--muted);
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  #ribbon .tab-group button.active {
+    background: var(--accent-purple);
+    color: var(--foreground);
+    border-left: 2px solid var(--foreground);
+  }
+  #ribbon .tab-group button:hover:not(.active) {
+    background: var(--border);
+    color: var(--foreground);
+  }
+  /* Sidebar */
+  #sidebar {
+    width: 130px;
+    border-right: 1px solid var(--border);
+    padding: 10px;
+    overflow-y: auto;
+    background: var(--background);
+  }
+  #sidebar .asset-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  #sidebar .asset-symbol {
+    font-weight: bold;
+  }
+  #sidebar .signal-badge {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  #sidebar .signal-badge.up { background: var(--green); }
+  #sidebar .signal-badge.down { background: var(--red); }
+  #sidebar .signal-badge.hold { background: var(--amber); }
+  /* Main content area */
+  #content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  /* Grid area */
+  #grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    overflow: hidden;
+  }
+  .tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tile .price {
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .tile .label {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tile .value {
+    font-size: 14px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  .tile .sparkline {
+    flex: 1;
+    min-height: 20px;
+    background: var(--base);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile .sparkline canvas {
+    width: 100%;
+    height: 100%;
+  }
+  .tile .signal-badge-large {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 6px;
+  }
+  /* Inspector */
+  #inspector {
+    width: 148px;
+    border-left: 1px solid var(--border);
+    padding: 10px;
+    background: var(--background);
+    overflow-y: auto;
+  }
+  #inspector h3 {
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2px;
+  }
+  #inspector table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    font-size: 13px;
+  }
+  #inspector th {
+    text-align: left;
+    color: var(--muted);
+    padding-bottom: 2px;
+  }
+  #inspector td {
+    text-align: right;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  #inspector tr:hover td {
+    background: var(--border);
+  }
+  /* Bottom dock */
+  #bottom {
+    height: 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--background);
+  }
+  #bottom .tab {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--base);
+  }
+  #bottom .tab.active {
+    background: var(--accent-purple);
+    color: var(--foreground);
+  }
+  #bottom .command-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--base);
+    color: var(--foreground);
+    padding: 2px 6px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+  }
+  /* Status bar */
+  #status {
+    height: 18px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    padding: 2px 8px;
+    background: var(--base);
+    display: flex;
+    justify-content: space-between;
+  }
+  /* Resize handles styling (Split.js) */
+  .split-gutter {
+    background: var(--border);
+    cursor: col-resize;
+  }
+  .split-gutter:hover {
+    background: var(--accent-purple);
+  }
+  .split-gutter.horizontal {
+    cursor: row-resize;
+    height: 8px;
+  }
+  .split-gutter.vertical {
+    width: 8px;
+  }
+</style>
+</head>
+<body>
+<div id="ribbon">
+  <div class="tab-group">
+    <button class="active" data-tab="file">FILE</button>
+    <button data-tab="execution">EXECUTION</button>
+    <button data-tab="physics">PHYSICS MODELS</button>
+    <button data-tab="data">DATA</button>
+    <button data-tab="environment">ENVIRONMENT</button>
+  </div>
+  <div style="margin-left: auto;">
+    <span id="asset-display" class="asset-symbol">BTC/USDT</span>
+  </div>
+</div>
+
+<div id="container" style="display: flex; flex-direction: column; height: calc(100vh - 48px - 28px - 18px);">
+  <!-- Vertical split: sidebar | main -->
+  <div id="split-wrapper" style="flex: 1; display: flex; height: 100%;">
+    <div id="sidebar">
+      <div style="font-size: 12px; margin-bottom: 6px; color: var(--muted);">Market Watch</div>
+      <div id="asset-list"></div>
+    </div>
+    <div id="main" style="flex: 1; display: flex; overflow: hidden;">
+      <!-- Horizontal split: grid | inspector -->
+      <div id="h-split-wrapper" style="flex: 1; display: flex;">
+        <div id="grid"></div>
+        <div id="inspector">
+          <h3>Workspace Inspector</h3>
+          <table>
+            <thead>
+              <tr><th>Variable</th><th>Value</th></tr>
+            </thead>
+            <tbody id="inspector-body">
+              <!-- rows will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div class="tab active" data-tab="command">Command Window</div>
+  <div class="tab" data-tab="backtest">Backtest</div>
+  <div class="tab" data-tab="paper">Paper Trade</div>
+  <div class="tab" data-tab="entropy">Entropy Log</div>
+  <input type="text" id="command-input" placeholder=">>" autocomplete="off" />
+</div>
+
+<div id="status">
+  <div id="status-left">Data: --</div>
+  <div id="status-right">Updated: --</div>
+</div>
+
+<script>
+// Configuration
+const DEFAULT_ASSET = { id: "bitcoin", symbol: "btc", name: "Bitcoin", market: "crypto", binanceSymbol: "btcusdt" };
+let currentAsset = DEFAULT_ASSET;
+let priceHistory = []; // array of {ts, price} for sparkline
+let lastPrice = 0;
+let updateInterval = null;
+
+// DOM elements
+const assetDisplay = document.getElementById('asset-display');
+const assetListEl = document.getElementById('asset-list');
+const gridEl = document.getElementById('grid');
+const inspectorBody = document.getElementById('inspector-body');
+const statusLeft = document.getElementById('status-left');
+const statusRight = document.getElementById('status-right');
+const commandInput = document.getElementById('command-input');
+
+// Tab switching
+document.querySelectorAll('#ribbon .tab-group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#ribbon .tab-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('#bottom .tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#bottom .tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// Fetch asset list (featured coins + indian markets)
+async function loadAssetList() {
+  try {
+    // Fetch coin list from CoinGecko
+    const coinResp = await fetch('https://api.coingecko.com/api/v3/coins/list');
+    const coins = await coinResp.json();
+    // Get Binance USDT bases
+    const binanceResp = await fetch('https://api.binance.com/api/v3/exchangeInfo', { headers: { 'User-Agent': 'MIRO/1.0' } });
+    let binanceSymbols = [];
+    if (binanceResp.ok) {
+      const binanceData = await binanceResp.json();
+      binanceSymbols = (binanceData.symbols || [])
+        .filter(s => s.status === 'TRADING' && s.quoteAsset === 'USDT')
+        .map(s => s.baseAsset.toLowerCase());
+    }
+    const binanceSet = new Set(binanceSymbols);
+    // Build featured assets (top coins)
+    const featuredCoins = coins.slice(0, 50).map(c => ({
+      id: c.id,
+      symbol: c.symbol,
+      name: c.name,
+      market: 'crypto',
+      binanceSymbol: binanceSet.has(c.symbol) ? `${c.symbol}usdt` : undefined
+    }));
+    // Add Indian market assets (hardcoded for simplicity)
+    const indianAssets = [
+      { id: 'nifty-50', symbol: 'NIFTY50', name: 'Nifty 50', market: 'nse', yahooSymbol: '^NSEI' },
+      { id: 'sensex', symbol: 'SENSEX', name: 'SENSEX', market: 'bse', yahooSymbol: '^BSESN' },
+      { id: 'banknifty', symbol: 'BANKNIFTY', name: 'Nifty Bank', market: 'nse', yahooSymbol: '^NSEBANK' },
+      { id: 'reliance-nse', symbol: 'RELIANCE', name: 'Reliance Industries (NSE)', market: 'nse', yahooSymbol: 'RELIANCE.NS' },
+      { id: 'tcs-nse', symbol: 'TCS', name: 'TCS (NSE)', market: 'nse', yahooSymbol: 'TCS.NS' },
+      { id: 'hdfcbank-nse', symbol: 'HDFCBANK', name: 'HDFC Bank (NSE)', market: 'nse', yahooSymbol: 'HDFCBANK.NS' },
+      { id: 'reliance-bse', symbol: 'RELIANCE', name: 'Reliance Industries (BSE)', market: 'bse', yahooSymbol: 'RELIANCE.BO' },
+      { id: 'tcs-bse', symbol: 'TCS', name: 'TCS (BSE)', market: 'bse', yahooSymbol: 'TCS.BO' },
+      { id: 'icicibank-bse', symbol: 'ICICIBANK', name: 'ICICI Bank (BSE)', market: 'bse', yahooSymbol: 'ICICIBANK.BO' }
+    ];
+    const assets = [...featuredCoins, ...indianAssets];
+    renderAssetList(assets);
+    // Set first asset as default if not set
+    if (!currentAsset) currentAsset = assets[0];
+    updateAssetDisplay();
+    startDataLoop();
+  } catch (err) {
+    console.error('Failed to load asset list:', err);
+    // fallback to default
+    renderAssetList([DEFAULT_ASSET]);
+    currentAsset = DEFAULT_ASSET;
+    updateAssetDisplay();
+    startDataLoop();
+  }
+}
+
+function renderAssetList(assets) {
+  assetListEl.innerHTML = '';
+  assets.forEach(asset => {
+    const div = document.createElement('div');
+    div.className = 'asset-item';
+    div.dataset.id = asset.id;
+    div.innerHTML = `
+      <div class="asset-symbol">${assetDisplaySymbol(asset)}</div>
+      <div class="signal-badge" id="badge-${asset.id}"></div>
+    `;
+    div.addEventListener('click', () => {
+      selectAsset(asset);
+    });
+    assetListEl.appendChild(div);
+  });
+}
+
+function assetDisplaySymbol(asset) {
+  const sym = asset.symbol.toUpperCase();
+  if (asset.market === 'crypto') return `${sym}/USDT`;
+  if (asset.market === 'forex') {
+    const base = (asset.forexBase ?? sym.slice(0,3)).toUpperCase();
+    const quote = (asset.forexQuote ?? sym.slice(3,6) ?? 'USD').toUpperCase();
+    return `${base}/${quote}`;
+  }
+  if (asset.market === 'nse') return sym.startsWith('^') || sym.includes('.') ? sym : `${sym}.NS`;
+  if (asset.market === 'bse') return sym.startsWith('^') || sym.includes('.') ? sym : `${sym}.BO`;
+  return sym;
+}
+
+function selectAsset(asset) {
+  currentAsset = asset;
+  updateAssetDisplay();
+  // reset history
+  priceHistory = [];
+  lastPrice = 0;
+  // update active badge
+  document.querySelectorAll('#asset-list .asset-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  const activeItem = document.querySelector(`#asset-list .asset-item[data-id="${asset.id}"]`);
+  if (activeItem) activeItem.classList.add('active');
+}
+
+function updateAssetDisplay() {
+  assetDisplay.textContent = assetDisplaySymbol(currentAsset);
+}
+
+// Data fetching
+async function fetchPriceAndHistory() {
+  try {
+    let price = null;
+    let hist = [];
+    if (currentAsset.market === 'crypto') {
+      if (currentAsset.binanceSymbol) {
+        // Try Binance
+        const binanceResp = await fetch(`https://api.binance.com/api/v3/klines?symbol=${currentAsset.binanceSymbol.toUpperCase()}&interval=1m&limit=30`);
+        if (binanceResp.ok) {
+          const bins = await binanceResp.json();
+          hist = bins.map(k => ({ ts: k[0], price: parseFloat(k[4]) }));
+          if (hist.length > 0) {
+            price = hist[hist.length - 1].price;
+          }
+        }
+      }
+      if (price === null) {
+        // Fallback to CoinGecko
+        const cgResp = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${currentAsset.id}&vs_currencies=usd&include_last_updated_at=true`);
+        if (cgResp.ok) {
+          const data = await cgResp.json();
+          const cgData = data[currentAsset.id];
+          if (cgData && cgData.usd) {
+            price = cgData.usd;
+            // fetch short history for sparkline
+            const histResp = await fetch(`https://api.coingecko.com/api/v3/coins/${currentAsset.id}/market_chart?vs_currency=usd&days=1`);
+            if (histResp.ok) {
+              const histData = await histResp.json();
+              if (histData.prices && histData.prices.length > 0) {
+                hist = histData.prices.slice(-30).map(p => ({ ts: p[0], price: p[1] }));
+              }
+            }
+          }
+        }
+      }
+    } else if (currentAsset.market === 'nse' || currentAsset.market === 'bse') {
+      // Use Yahoo Finance (free delayed)
+      if (currentAsset.yahooSymbol) {
+        const yahooResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${currentAsset.yahooSymbol}?interval=1m&range=1d`);
+        if (yahooResp.ok) {
+          const yahooData = await yahooResp.json();
+          const result = yahooData.chart.result[0];
+          const timestamps = result.timestamp;
+          const prices = result.indicators.quote[0].close;
+          hist = timestamps.map((ts, i) => ({ ts: ts * 1000, price: prices[i] })).filter(p => p.price !== null);
+          if (hist.length > 0) {
+            price = hist[hist.length - 1].price;
+          }
+        }
+      }
+    }
+    // If still no price, keep previous
+    if (price === null) price = lastPrice;
+    // Update history
+    if (price !== null && (priceHistory.length === 0 || Math.abs(price - priceHistory[priceHistory.length - 1].price) > 1e-9)) {
+      const now = Date.now();
+      priceHistory.push({ ts: now, price: price });
+      // keep last 30 points
+      if (priceHistory.length > 30) priceHistory.shift();
+    }
+    lastPrice = price;
+    return { price, hist };
+  } catch (err) {
+    console.error('Error fetching data:', err);
+    return { price: lastPrice, hist: priceHistory };
+  }
+}
+
+// Compute simple metrics (placeholder)
+function computeMetrics(price, hist) {
+  const change = priceHistory.length >= 2 ? (price - priceHistory[priceHistory.length - 2].price) : 0;
+  const changePct = priceHistory.length >= 2 ? ((change / priceHistory[priceHistory.length - 2].price) * 100) : 0;
+  const signal = changePct > 0.1 ? 'up' : changePct < -0.1 ? 'down' : 'hold';
+  const hmmRegime = changePct > 0 ? 2 : changePct < 0 ? 0 : 1; // 0=bear,1=neutral,2=bull
+  const entropy = Math.abs(changePct) * 10; // dummy
+  const sigma = Math.abs(changePct) * 0.01; // dummy volatility
+  return { change, changePct, signal, hmmRegime, entropy, sigma };
+}
+
+// Update UI
+function updateUI({ price, hist, metrics }) {
+  // Update price tiles (2x2 grid) - show same data in all four tiles for simplicity
+  const tiles = gridEl.querySelectorAll('.tile');
+  tiles.forEach((tile, idx) => {
+    tile.querySelector('.price').textContent = price ? price.toFixed(6) : '--';
+    tile.querySelector('.label:nth-child(2) .value').textContent = metrics.hmmRegime !== undefined ? ['Bear','Neutral','Bull'][metrics.hmmRegime] : '--';
+    tile.querySelector('.label:nth-child(3) .value').textContent = metrics.entropy !== undefined ? metrics.entropy.toFixed(3) : '--';
+    tile.querySelector('.label:nth-child(4) .value').textContent = metrics.sigma !== undefined ? metrics.sigma.toFixed(6) : '--';
+    // sparkline
+    const sparklineContainer = tile.querySelector('.sparkline');
+    sparklineContainer.innerHTML = '<canvas></canvas>';
+    const ctx = sparklineContainer.querySelector('canvas').getContext('2d');
+    const width = sparklineContainer.clientWidth;
+    const height = sparklineContainer.clientHeight;
+    sparklineContainer.querySelector('canvas').width = width * devicePixelRatio;
+    sparklineContainer.querySelector('canvas').height = height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.clearRect(0, 0, width, height);
+    if (hist && hist.length > 1) {
+      const pts = hist.slice(-30); // last 30 points
+      const minPrice = Math.min(...pts.map(p => p.price));
+      const maxPrice = Math.max(...pts.map(p => p.price));
+      const priceRange = maxPrice - minPrice || 1;
+      ctx.beginPath();
+      ctx.strokeStyle = var(--accent-purple);
+      ctx.lineWidth = 2;
+      pts.forEach((p, i) => {
+        const x = (i / (pts.length - 1)) * width;
+        const y = height - ((p.price - minPrice) / priceRange) * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+    // signal badge
+    const badgeEl = tile.querySelector('.signal-badge-large');
+    if (badgeEl) {
+      badgeEl.className = 'signal-badge-large';
+      if (metrics.signal === 'up') badgeEl.classList.add('up');
+      else if (metrics.signal === 'down') badgeEl.classList.add('down');
+      else badgeEl.classList.add('hold');
+    }
+  });
+  // Update inspector table
+  inspectorBody.innerHTML = `
+    <tr><td>sharpe</td><td>${(Math.random()*2-1).toFixed(3)}</td></tr>
+    <tr><td>H (entropy)</td><td>${metrics.entropy?.toFixed(3) ?? '--'}</td></tr>
+    <tr><td>regime</td><td>${['Bear','Neutral','Bull'][metrics.hmmRegime] ?? '--'}</td></tr>
+    <tr><td>sigma</td><td>${metrics.sigma?.toFixed(6) ?? '--'}</td></tr>
+    <tr><td>entropy</td><td>${metrics.entropy?.toFixed(3) ?? '--'}</td></tr>
+  `;
+  // Update asset list badges
+  const badgeEl = document.getElementById(`badge-${currentAsset.id}`);
+  if (badgeEl) {
+    badgeEl.className = 'signal-badge';
+    if (metrics.signal === 'up') badgeEl.classList.add('up');
+    else if (metrics.signal === 'down') badgeEl.classList.add('down');
+    else badgeEl.classList.add('hold');
+  }
+  // Status
+  statusLeft.textContent = `Data: ${currentAsset.symbol.toUpperCase()} ${price ? price.toFixed(6) : '--'}`;
+  statusRight.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+}
+
+// Main loop
+async function dataLoop() {
+  const data = await fetchPriceAndHistory();
+  const metrics = computeMetrics(data.price, data.hist);
+  updateUI({ price: data.price, hist: data.hist, metrics });
+}
+
+// Start periodic updates
+function startDataLoop() {
+  if (updateInterval) clearInterval(updateInterval);
+  updateInterval = setInterval(dataLoop, 3000); // every 3 seconds
+  // immediate first update
+  dataLoop();
+}
+
+// Handle resize for canvases
+window.addEventListener('resize', () => {
+  // Trigger UI update to redraw canvases with new dimensions
+  if (priceHistory.length > 0) {
+    const last = priceHistory[priceHistory.length - 1];
+    updateUI({ price: last.price, hist: priceHistory, metrics: computeMetrics(last.price, priceHistory) });
+  }
+});
+
+// Initialize
+loadAssetList();
+</script>
+</body>
+</html>`;

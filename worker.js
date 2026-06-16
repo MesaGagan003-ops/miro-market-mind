@@ -424,11 +424,6 @@ function renderAssetList(assets) {
 function assetDisplaySymbol(asset) {
   const sym = asset.symbol.toUpperCase();
   if (asset.market === 'crypto') return `${sym}/USDT`;
-  if (asset.market === 'forex') {
-    const base = (asset.forexBase ?? sym.slice(0,3)).toUpperCase();
-    const quote = (asset.forexQuote ?? sym.slice(3,6) ?? 'USD').toUpperCase();
-    return `${base}/${quote}`;
-  }
   if (asset.market === 'nse') return sym.startsWith('^') || sym.includes('.') ? sym : `${sym}.NS`;
   if (asset.market === 'bse') return sym.startsWith('^') || sym.includes('.') ? sym : `${sym}.BO`;
   return sym;
@@ -557,7 +552,7 @@ function updateUI({ price, hist, metrics }) {
       const maxPrice = Math.max(...pts.map(p => p.price));
       const priceRange = maxPrice - minPrice || 1;
       ctx.beginPath();
-      ctx.strokeStyle = var(--accent-purple);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-purple').trim();
       ctx.lineWidth = 2;
       pts.forEach((p, i) => {
         const x = (i / (pts.length - 1)) * width;

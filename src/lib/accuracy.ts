@@ -1,5 +1,9 @@
 // Tracks past predictions and grades them once their horizon elapses.
 // Stored in localStorage per coin+timeframe.
+// All timestamps are snapped to the global tick grid (see timeframes.ts) so the
+// prediction engine, chart, and accuracy tracker share one timeline.
+import { TICK_INTERVAL_MS, snapToTick } from "./timeframes";
+
 
 export interface PastPrediction {
   id: string;

@@ -10,7 +10,7 @@ import { DataSourceInfo } from "@/components/DataSourceInfo";
 import { ProviderHealthPanel, type ProviderHealthItem } from "@/components/ProviderHealthPanel";
 import { TrainerPanel } from "@/components/TrainerPanel";
 import { FEATURED_ASSETS, type MarketAsset } from "@/lib/markets";
-import { TIMEFRAMES, type Timeframe } from "@/lib/timeframes";
+import { TIMEFRAMES, type Timeframe, TICK_INTERVAL_MS, snapToTick, horizonMs, ticksForHorizon } from "@/lib/timeframes";
 import {
   subscribeAsset,
   fetchAssetHistory,
@@ -554,33 +554,34 @@ function PredictionEngine() {
   // Record predictions periodically + resolve old ones (local + cloud learning)
   useEffect(() => {
     if (!prediction || currentPrice === 0) return;
-    const now = Date.now();
+    // Snap "now" to the tick grid so recording/resolution share the chart's timeline.
+    const now = snapToTick(Date.now());
+    const hMs = horizonMs(timeframe.minutes);
+    const hTicks = ticksForHorizon(timeframe.minutes);
     resolvePredictions(currentPrice, now);
-    
+
     // Cloud-side resolution + adaptive weight update (fire and forget)
     // Throttle to avoid 409 and ERR_INSUFFICIENT_RESOURCES from repeating every tick
     if (now - lastResolveRef.current > 15_000) {
       lastResolveRef.current = now;
       void resolvePendingPredictions(coin.market, coin.id, timeframe.id, currentPrice).catch(e => console.warn(e));
     }
-    
-    const interval = Math.max(30_000, (timeframe.minutes * 60 * 1000) / 4);
+
+    // Record at most once per quarter-horizon, aligned to ticks.
+    const interval = Math.max(30 * TICK_INTERVAL_MS, hMs / 4);
     if (now - lastRecordRef.current > interval) {
       lastRecordRef.current = now;
-      // Only record predictions if data quality is acceptable (>0.4) and confidence is >0.36
-      // This prevents training on noisy/sparse data that would hurt model learning
       if (dataQuality.score > 0.4 && prediction.hybridConfidence > 0.36) {
         recordPrediction({
           coinId: `${coin.market}:${coin.id}`,
           timeframeId: timeframe.id,
           startTs: now,
-          resolveTs: now + timeframe.minutes * 60 * 1000,
+          resolveTs: now + hMs,
           startPrice: currentPrice,
           predictedPrice: prediction.finalPrice,
           predictedDirection: prediction.direction,
           hybridConfidence: prediction.hybridConfidence,
         });
-        // Persist to Lovable Cloud for the adaptive learning loop
         void recordPredictionCloud({
           market: coin.market,
           symbol: coin.id,
@@ -588,19 +589,19 @@ function PredictionEngine() {
           spotPrice: currentPrice,
           predictedPrice: prediction.finalPrice,
           direction: prediction.direction,
-          horizonSeconds: timeframe.minutes * 60,
+          horizonSeconds: (hTicks * TICK_INTERVAL_MS) / 1000,
           hybridConfidence: prediction.hybridConfidence,
           weights: prediction.weights,
           features: {
             market: coin.market,
           },
         }).catch(e => console.warn(e));
-        // Warm cache for adaptive weights (used by future hybrid runs)
         void loadWeights(coin.market, coin.id, timeframe.id).then(setAdaptive).catch(e => console.warn(e));
       }
     }
     setStats(computeAccuracy(`${coin.market}:${coin.id}`, timeframe.id));
   }, [prediction, currentPrice, coin.id, coin.market, timeframe, dataQuality.score]);
+
 
   useEffect(() => {
     if (!prediction) return;

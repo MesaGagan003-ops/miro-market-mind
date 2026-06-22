@@ -5,6 +5,26 @@ export interface Timeframe {
   minutes: number;
 }
 
+// Global tick rate used by chart resampling + horizon alignment.
+// 1 tick = 1 second. Horizons and resolution timestamps snap to this grid so
+// the prediction engine and accuracy tracker share the chart's timeline.
+export const TICK_INTERVAL_MS = 1000;
+
+/** Snap a timestamp (ms) up to the next tick boundary. */
+export function snapToTick(ts: number): number {
+  return Math.ceil(ts / TICK_INTERVAL_MS) * TICK_INTERVAL_MS;
+}
+
+/** Number of ticks contained in a horizon (in minutes). */
+export function ticksForHorizon(minutes: number): number {
+  return Math.max(1, Math.round((minutes * 60_000) / TICK_INTERVAL_MS));
+}
+
+/** Horizon length in ms, snapped to the tick grid. */
+export function horizonMs(minutes: number): number {
+  return ticksForHorizon(minutes) * TICK_INTERVAL_MS;
+}
+
 export const TIMEFRAMES: Timeframe[] = [
   { id: "1m", label: "1 min", minutes: 1 },
   { id: "5m", label: "5 min", minutes: 5 },
@@ -19,3 +39,4 @@ export const TIMEFRAMES: Timeframe[] = [
   { id: "1d", label: "1 day", minutes: 1440 },
   { id: "1w", label: "1 week", minutes: 60 * 24 * 7 },
 ];
+

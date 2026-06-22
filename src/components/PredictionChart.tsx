@@ -29,8 +29,43 @@ interface ChartPoint {
   step?: number;
 }
 
+// Resample sparse OHLC-style history into evenly spaced "tick" points using
+// linear interpolation. Produces a much smoother actual-price line that mimics
+// a tick-by-tick feed even when the underlying source is 1m/5m candles.
+function resampleToTicks(
+  history: { ts: number; price: number }[],
+  targetTicks = 600,
+): { ts: number; price: number }[] {
+  if (history.length < 2) return history.slice();
+  const first = history[0].ts;
+  const last = history[history.length - 1].ts;
+  const span = last - first;
+  if (span <= 0) return history.slice();
+  // Pick a tick interval: at least 1s, at most the native gap, aiming for ~targetTicks.
+  const nativeGap = span / (history.length - 1);
+  const desired = span / targetTicks;
+  const tickMs = Math.max(1000, Math.min(nativeGap, desired));
+  const out: { ts: number; price: number }[] = [];
+  let j = 0;
+  for (let t = first; t <= last; t += tickMs) {
+    while (j < history.length - 2 && history[j + 1].ts < t) j++;
+    const a = history[j];
+    const b = history[j + 1] ?? a;
+    const denom = b.ts - a.ts;
+    const frac = denom > 0 ? (t - a.ts) / denom : 0;
+    const price = a.price + (b.price - a.price) * Math.max(0, Math.min(1, frac));
+    out.push({ ts: t, price });
+  }
+  // Ensure the final true sample is preserved exactly.
+  if (out.length === 0 || out[out.length - 1].ts !== last) {
+    out.push(history[history.length - 1]);
+  }
+  return out;
+}
+
 export function PredictionChart({ history, prediction, currentPrice, minutesPerStep }: Props) {
-  const histPoints = history.map((h) => ({ t: h.ts, actual: h.price }));
+  const ticks = resampleToTicks(history);
+  const histPoints = ticks.map((h) => ({ t: h.ts, actual: h.price }));
 
   // Anchor the prediction at the LAST ACTUAL data point, not at the current
   // wall-clock. This guarantees the predicted line continues seamlessly from

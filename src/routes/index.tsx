@@ -10,7 +10,7 @@ import { DataSourceInfo } from "@/components/DataSourceInfo";
 import { ProviderHealthPanel, type ProviderHealthItem } from "@/components/ProviderHealthPanel";
 import { TrainerPanel } from "@/components/TrainerPanel";
 import { FEATURED_ASSETS, type MarketAsset } from "@/lib/markets";
-import { TIMEFRAMES, type Timeframe } from "@/lib/timeframes";
+import { TIMEFRAMES, type Timeframe, TICK_INTERVAL_MS, snapToTick, horizonMs, ticksForHorizon } from "@/lib/timeframes";
 import {
   subscribeAsset,
   fetchAssetHistory,

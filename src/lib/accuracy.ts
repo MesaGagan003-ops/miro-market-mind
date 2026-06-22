@@ -38,8 +38,11 @@ export function savePredictions(list: PastPrediction[]) {
 
 export function recordPrediction(p: Omit<PastPrediction, "id">): PastPrediction[] {
   const list = loadPredictions();
-  const item: PastPrediction = { ...p, id: `${p.coinId}-${p.startTs}` };
-  // Dedupe within same minute
+  // Snap start/resolve to the tick grid so identical sub-tick calls dedupe and
+  // resolution matches the chart's tick timeline exactly.
+  const startTs = snapToTick(p.startTs);
+  const resolveTs = snapToTick(p.resolveTs);
+  const item: PastPrediction = { ...p, startTs, resolveTs, id: `${p.coinId}-${startTs}` };
   if (!list.find((x) => x.id === item.id)) list.push(item);
   savePredictions(list);
   return list;
@@ -48,12 +51,13 @@ export function recordPrediction(p: Omit<PastPrediction, "id">): PastPrediction[
 export function resolvePredictions(currentPrice: number, ts: number): PastPrediction[] {
   const list = loadPredictions();
   let changed = false;
+  // Resolve once the current tick reaches the prediction's tick-aligned target.
+  const tickTs = Math.floor(ts / TICK_INTERVAL_MS) * TICK_INTERVAL_MS;
   for (const p of list) {
-    if (p.correct === undefined && ts >= p.resolveTs) {
+    if (p.correct === undefined && tickTs >= p.resolveTs) {
       p.resolvedPrice = currentPrice;
       const delta = currentPrice - p.startPrice;
       p.actualDirection = Math.abs(delta) < 1e-12 ? "flat" : delta > 0 ? "up" : "down";
-      // Directional accuracy: flat predictions are correct only if actual is also flat-ish
       if (p.predictedDirection === "flat") {
         const tol = Math.abs(p.predictedPrice - p.startPrice) || p.startPrice * 0.001;
         p.correct = Math.abs(delta) <= tol * 1.5;
@@ -66,6 +70,7 @@ export function resolvePredictions(currentPrice: number, ts: number): PastPredic
   if (changed) savePredictions(list);
   return list;
 }
+
 
 export interface AccuracyStats {
   total: number;
